@@ -14,7 +14,7 @@ with UK (BST) / Brisbane (AEST) time toggle and TV channels for both markets.
 
 ## Notes
 
-- Scores, the knockout bracket, your timezone choice and your Odds API key are saved
-  in each person's browser (localStorage) — everyone who opens the link keeps their own copy.
-- Live odds: free key from https://the-odds-api.com → paste it in the 📊 Odds tab.
+- Official results sync in automatically (TheSportsDB) every time the app is opened — no setup.
+- Scores, the knockout bracket and your timezone choice are saved in each person's
+  browser (localStorage) — everyone who opens the link keeps their own copy.
 - All times: 🇬🇧 BST / 🇦🇺 AEST (Brisbane). TV: BBC/ITV (UK), SBS & SBS On Demand (AU).
