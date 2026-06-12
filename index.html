@@ -77,12 +77,47 @@ nav.tabs button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .progress{font-size:12px;color:var(--muted);margin-left:auto;align-self:center}
 
 /* filters */
-.filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
-.filters button{
-  background:var(--card);border:1px solid rgba(244,239,226,.18);color:var(--muted);
-  border-radius:7px;padding:5px 11px;font:600 12px 'Space Grotesk',sans-serif;cursor:pointer;
+.filters{display:flex;gap:10px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
+.filters label{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+select.gsel{
+  background:var(--card);color:var(--ink);border:1px solid rgba(227,179,65,.45);border-radius:8px;
+  font:700 14px 'Space Grotesk',sans-serif;padding:9px 36px 9px 13px;cursor:pointer;
+  appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23e3b341' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;
 }
-.filters button.on{background:var(--gold);color:#1d1505;border-color:var(--gold)}
+select.gsel:focus{outline:none;border-color:var(--gold)}
+
+/* compact info banner + modal */
+.banner-row{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  background:rgba(227,179,65,.1);border:1px dashed rgba(227,179,65,.5);border-radius:10px;
+  padding:11px 14px;font-size:14px;margin-bottom:20px;
+}
+.banner-row b{color:var(--gold)}
+.info-btn{
+  font:700 12px 'Space Grotesk',sans-serif;letter-spacing:.04em;border-radius:999px;cursor:pointer;
+  padding:8px 15px;border:1px solid var(--gold);background:transparent;color:var(--gold);white-space:nowrap;
+}
+.info-btn:hover{background:var(--gold);color:#1d1505}
+.modal-bg{
+  position:fixed;inset:0;background:rgba(4,16,11,.78);z-index:90;
+  display:flex;align-items:center;justify-content:center;padding:18px;
+}
+.modal{
+  background:linear-gradient(180deg,var(--card),var(--pitch-2));border:2px solid var(--gold);border-radius:14px;
+  max-width:540px;width:100%;max-height:82vh;overflow-y:auto;padding:22px 22px 18px;position:relative;
+  box-shadow:0 14px 50px rgba(0,0,0,.6);
+}
+.modal h4{font-family:'Anton',sans-serif;font-weight:400;font-size:22px;letter-spacing:.04em;text-transform:uppercase;color:var(--gold);margin-bottom:12px;padding-right:36px}
+.modal p{font-size:14px;line-height:1.65;margin-bottom:11px}
+.modal p:last-child{margin-bottom:0}
+.modal .x{
+  position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:50%;
+  border:1px solid rgba(244,239,226,.3);background:transparent;color:var(--ink);
+  font:700 16px 'Space Grotesk',sans-serif;cursor:pointer;
+}
+.modal .x:hover{border-color:var(--gold);color:var(--gold)}
 
 /* match day blocks */
 .day{margin-bottom:26px}
@@ -676,8 +711,11 @@ function renderFixtures(){
   const fs=FIX.filter(f=>groupFilter==="ALL"||f[1]===groupFilter);
   const days={};fs.forEach(f=>{(days[dayKey(f[4])]=days[dayKey(f[4])]||[]).push(f);});
   let html=`<div class="filters">
-    <button data-g="ALL" class="${groupFilter==="ALL"?"on":""}">All</button>
-    ${Object.keys(GROUPS).map(g=>`<button data-g="${g}" class="${groupFilter===g?"on":""}">Grp ${g}</button>`).join("")}
+    <label for="gsel">Show</label>
+    <select class="gsel" id="gsel">
+      <option value="ALL"${groupFilter==="ALL"?" selected":""}>All groups</option>
+      ${Object.keys(GROUPS).map(g=>`<option value="${g}"${groupFilter===g?" selected":""}>Group ${g} — ${GROUPS[g].map(t=>fl(t)).join(" ")}</option>`).join("")}
+    </select>
   </div>`;
   Object.keys(days).forEach(k=>{
     const list=days[k].sort((a,b)=>new Date(a[4])-new Date(b[4]));
@@ -685,6 +723,7 @@ function renderFixtures(){
       ${list.map(matchCard).join("")}</div>`;
   });
   view.innerHTML=html;
+  document.getElementById("gsel").addEventListener("change",e=>{groupFilter=e.target.value;renderFixtures();});
 }
 function renderGroups(){
   let html='<div class="groups-grid">';
@@ -739,9 +778,9 @@ function renderKO(){
   const got=Object.keys(state.results).filter(k=>k.startsWith("g")).length;
   let html="";
   if(!allGroupsDone()){
-    html+=`<div class="banner">🔮 <b>${got}/72</b> results in. <i style="color:var(--muted)">Italic teams</i> show who'd be in each tie <b>as the tables stand right now</b> — they shift as you enter results. Names go solid with a <span class="lock-tag">🔒</span> once that finish is mathematically locked (or the group's done). Third-place projections appear once every group has played at least one game; score entry opens when both teams are locked.</div>`;
+    html+=`<div class="banner-row"><span>🔮 <b>${got}/72</b> results in &middot; <i style="color:var(--muted)">italics = projected</i>, <span class="lock-tag">🔒 = locked in</span></span><button class="info-btn" data-modal="ko">ℹ️ How this works</button></div>`;
   }else{
-    html+=`<div class="banner">🎉 Group stage done! Round of 32 is set below — enter results to build the road to the final at New York/New Jersey on <b>${state.tz==="UK"?"19 July":"20 July (AEST)"}</b>.</div>`;
+    html+=`<div class="banner-row"><span>🎉 Group stage done — bracket is <b>live</b>. Final: <b>${state.tz==="UK"?"19 July":"20 July (AEST)"}</b>, MetLife Stadium.</span><button class="info-btn" data-modal="ko">ℹ️ How this works</button></div>`;
   }
   const M=buildKO();
   const rounds=[["Round of 32","28 June – 4 July"],["Round of 16","4 – 7 July"],["Quarter-finals","9 – 12 July"],["Semi-finals","14 – 15 July"],["Third-place play-off","18 July"],["The Final","19 July, MetLife Stadium"]];
@@ -791,8 +830,8 @@ view.addEventListener("click",e=>{
   const save=e.target.closest("[data-save]");
   const edit=e.target.closest("[data-edit]");
   const pen=e.target.closest("[data-pen]");
-  const gbtn=e.target.closest("[data-g]");
-  if(gbtn){groupFilter=gbtn.dataset.g;renderFixtures();return;}
+  const modal=e.target.closest("[data-modal]");
+  if(modal){showModal(MODALS[modal.dataset.modal]);return;}
   if(pen){
     const[id,side]=pen.dataset.pen.split("|");
     state.pens[id]=side;saveState();render();
@@ -833,6 +872,31 @@ function clearDownstream(no){
       clearDownstream(next);
     }else{clearDownstream(next);}
   });
+}
+
+/* ================= MODAL ================= */
+const MODALS={
+ko:`<h4>🏆 How the knockouts work</h4>
+<p><b>The format:</b> 32 teams go through — the top two from all 12 groups, plus the <b>eight best third-placed sides</b> across the tournament. Then it's straight knockout: Round of 32 → Round of 16 → quarters → semis → final on 19 July (20 July for the Brisbane crew).</p>
+<p><b><i>Italic names</i> = projected.</b> That's who'd fill each slot if the group tables froze right now. They reshuffle live as you enter results — expect chaos on matchday three.</p>
+<p><b>Solid names with 🔒 = locked in.</b> A team only goes solid when their finishing position is <b>mathematically certain</b> on points — no possible combination of remaining results can move them (if a rival could still equal their points, it stays projected, because goal difference could swing it).</p>
+<p><b>Third-place teams</b> stay italic until every group game is played, since the cross-group "best thirds" ranking can flip right up to the last whistle. They're then slotted into the bracket per FIFA's group-allocation constraints.</p>
+<p><b>Entering results:</b> score boxes open once both teams in a tie are locked. Draws prompt you for the penalty shootout winner. Winners flow through to the next round automatically — and if you edit an earlier result and the winner changes, everything downstream resets so the bracket never lies to you.</p>`
+};
+let modalEl=null;
+function showModal(html){
+  closeModal();
+  modalEl=document.createElement("div");
+  modalEl.className="modal-bg";
+  modalEl.innerHTML=`<div class="modal" role="dialog" aria-modal="true">${html}<button class="x" aria-label="Close">✕</button></div>`;
+  document.body.appendChild(modalEl);
+  modalEl.addEventListener("click",e=>{if(e.target===modalEl||e.target.classList.contains("x"))closeModal();});
+  document.addEventListener("keydown",escClose);
+  modalEl.querySelector(".x").focus();
+}
+function escClose(e){if(e.key==="Escape")closeModal();}
+function closeModal(){
+  if(modalEl){modalEl.remove();modalEl=null;document.removeEventListener("keydown",escClose);}
 }
 
 /* ================= INIT ================= */
