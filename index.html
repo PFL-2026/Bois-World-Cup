@@ -832,6 +832,8 @@ function bindKoTabs(){
   document.querySelectorAll(".kotabs button").forEach(b=>b.addEventListener("click",()=>{koView=b.dataset.kov;render();}));
 }
 const ALLTEAMS=Object.values(GROUPS).flat().sort();
+/* which later matches consume each KO result (winners; 103 consumes losers of 101/102) */
+const KO_DEPS={73:[90],74:[89],75:[90],76:[91],77:[89],78:[91],79:[92],80:[92],81:[94],82:[94],83:[93],84:[93],85:[96],86:[95],87:[96],88:[95],89:[97],90:[97],91:[99],92:[99],93:[98],94:[98],95:[100],96:[100],97:[101],98:[101],99:[102],100:[102],101:[103,104],102:[103,104]};
 /* child match -> the match it feeds (toward the final, ignoring 3rd-place) */
 const PARENT={};
 Object.keys(KO_DEPS).forEach(no=>{const p=KO_DEPS[no].filter(x=>x!==103)[0];if(p)PARENT[no]=p;});
@@ -1021,8 +1023,6 @@ view.addEventListener("click",e=>{
     else if(!(prev&&id.startsWith("g")&&Object.keys(state.results).some(k=>k.startsWith("k"))))toast("Result saved ✅");
   }
 });
-/* which later matches consume each KO result (winners; 103 consumes losers of 101/102) */
-const KO_DEPS={73:[90],74:[89],75:[90],76:[91],77:[89],78:[91],79:[92],80:[92],81:[94],82:[94],83:[93],84:[93],85:[96],86:[95],87:[96],88:[95],89:[97],90:[97],91:[99],92:[99],93:[98],94:[98],95:[100],96:[100],97:[101],98:[101],99:[102],100:[102],101:[103,104],102:[103,104]};
 function clearDownstream(no){
   (KO_DEPS[no]||[]).forEach(next=>{
     if(state.results["k"+next]||state.pens["k"+next]){
