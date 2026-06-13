@@ -724,7 +724,7 @@ async function syncScores(auto){
 }
 /* ================= RENDER ================= */
 const view=document.getElementById("view");
-let tab="fixtures",groupFilter="ALL",koView="bracket",brkTeam="",brkScrollLeft=null;
+let tab="fixtures",groupFilter="ALL",groupView="ALL",koView="bracket",brkTeam="",brkScrollLeft=null;
 function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;");}
 function fl(t){return FLAGS[t]||"⚽";}
 function chanHTML(ukChan,koNo){
@@ -784,8 +784,16 @@ function renderFixtures(){
   document.getElementById("gsel").addEventListener("change",e=>{groupFilter=e.target.value;renderFixtures();});
 }
 function renderGroups(){
-  let html='<div class="groups-grid">';
-  Object.keys(GROUPS).forEach(g=>{
+  let html=`<div class="filters">
+    <label for="gselGroups">Show</label>
+    <select class="gsel" id="gselGroups">
+      <option value="ALL"${groupView==="ALL"?" selected":""}>All groups</option>
+      ${Object.keys(GROUPS).map(g=>`<option value="${g}"${groupView===g?" selected":""}>Group ${g} — ${GROUPS[g].map(t=>fl(t)).join(" ")}</option>`).join("")}
+    </select>
+  </div>`;
+  const shown=groupView==="ALL"?Object.keys(GROUPS):[groupView];
+  html+=`<div class="groups-grid"${shown.length===1?' style="grid-template-columns:1fr;max-width:460px"':''}>`;
+  shown.forEach(g=>{
     const t=tableFor(g);
     html+=`<div class="gtable"><h4>Group ${g}</h4><table>
       <tr><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr>
@@ -800,6 +808,7 @@ function renderGroups(){
     html+=`<div class="banner" style="margin-top:18px"><b>Best third-placed sides going through:</b><br>${th.map(t=>fl(t.team)+" "+esc(t.team)+" ("+t.g+", "+t.pts+" pts)").join(" &middot; ")}</div>`;
   }
   view.innerHTML=html;
+  document.getElementById("gselGroups").addEventListener("change",e=>{groupView=e.target.value;renderGroups();});
 }
 function koCard(m){
   const id="k"+m.no,r=state.results[id];
@@ -841,17 +850,20 @@ function renderKO(){
   }
   html+=`<div class="kotabs"><button data-kov="bracket" class="${koView==="bracket"?"on":""}">🗺️ Bracket</button><button data-kov="list" class="${koView==="list"?"on":""}">📋 List & scores</button></div>`;
   if(koView==="bracket"){
+    const koTeams=(()=>{const M=buildKO();const set=new Set();Object.values(M).forEach(m=>{if(m.home)set.add(m.home);if(m.away)set.add(m.away);});const a=[...set].sort();return a.length>=8?a:ALLTEAMS;})();
     html+=`<div class="brk-search">
-      <input id="brkSearch" list="brkTeams" placeholder="🔍 Search a team to light up their route" value="${esc(brkTeam)}" autocomplete="off">
-      <datalist id="brkTeams">${ALLTEAMS.map(t=>`<option value="${esc(t)}">`).join("")}</datalist>
+      <select id="brkSelect" class="gsel" style="min-width:210px" aria-label="Trace a team's route">
+        <option value="">🔍 Trace a team's route…</option>
+        ${koTeams.map(t=>`<option value="${esc(t)}"${brkTeam===t?" selected":""}>${fl(t)} ${esc(t)}</option>`).join("")}
+      </select>
       ${brkTeam?`<button class="brk-clear" id="brkClear">✕ Clear</button>`:""}
       <button class="brk-fs-btn" id="brkFsBtn">⤢ Full screen</button>
     </div>
     <div class="bracket-wrap"><div class="bracket-canvas" id="brkCanvas"></div></div>`;
     view.innerHTML=html;
     drawBracket();
-    const inp=document.getElementById("brkSearch");
-    inp.addEventListener("change",()=>{const v=inp.value.trim();brkTeam=ALLTEAMS.find(t=>t.toLowerCase()===v.toLowerCase())||"";render();});
+    const inp=document.getElementById("brkSelect");
+    inp.addEventListener("change",()=>{brkTeam=inp.value||"";render();});
     const clr=document.getElementById("brkClear");
     if(clr)clr.addEventListener("click",()=>{brkTeam="";render();});
     const fsb=document.getElementById("brkFsBtn");
