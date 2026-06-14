@@ -302,6 +302,11 @@ tr.q3 td:first-child{box-shadow:inset 4px 0 0 var(--gold)}
   .sync-tx{display:none}
   .sync-btn{padding:8px 12px}
 }
+/* ---------- highlights button ---------- */
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+a.btn{text-decoration:none;display:inline-flex;align-items:center;gap:5px}
+.btn.replay{border-color:var(--gold);color:var(--gold);background:rgba(231,189,87,.10)}
+.btn.replay:hover{background:var(--gold);color:#22190a}
 </style>
 </head>
 <body>
@@ -746,6 +751,11 @@ function scoreCell(id,home,away,utc){
   </div>`;
 }
 const editing=new Set();
+function highlightsLink(home,away){
+  if(!home||!away)return "";
+  const q=encodeURIComponent(home+" v "+away);
+  return `<a class="btn replay" href="https://www.bbc.co.uk/iplayer/search?q=${q}" target="_blank" rel="noopener" title="Watch highlights on BBC iPlayer">▶ Highlights</a>`;
+}
 function matchCard(f){
   const[id,g,home,away,utc,venue,ukChan]=f;
   const r=state.results[id];
@@ -760,7 +770,7 @@ function matchCard(f){
     </div>
     <div class="mbot">
       <div class="tv">${chanHTML(ukChan)}</div>
-      ${done?`<button class="btn ghost" data-edit="${id}">Edit</button>`
+      ${done?`<div class="actions">${highlightsLink(home,away)}<button class="btn ghost" data-edit="${id}">Edit</button></div>`
             :`<button class="btn" data-save="${id}">Save result</button>`}
     </div>
   </div>`;
@@ -836,7 +846,7 @@ function koCard(m){
       <button class="btn ${state.pens[id]==="A"?"sel":""}" data-pen="${id}|A">${esc(m.away)}</button></div>`:""}
     <div class="mbot">
       <div class="tv">${chanHTML(null,m.no)}</div>
-      ${ready?(done?`<button class="btn ghost" data-edit="${id}">Edit</button>`:`<button class="btn" data-save="${id}" data-ko="1">Save result</button>`):""}
+      ${ready?(done?`<div class="actions">${highlightsLink(m.home,m.away)}<button class="btn ghost" data-edit="${id}">Edit</button></div>`:`<button class="btn" data-save="${id}" data-ko="1">Save result</button>`):""}
     </div>
   </div>`;
 }
