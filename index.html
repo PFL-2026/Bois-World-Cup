@@ -362,6 +362,10 @@ body{-webkit-tap-highlight-color:transparent}
 .btn,.chip,.sync-btn,nav.tabs button,.tz button,.zbtn,.info-btn,.brk-fs-btn,a.btn{transition:transform .1s ease,background .15s,color .15s,border-color .15s}
 .btn:active,.chip:active,.sync-btn:active,nav.tabs button:active,.tz button:active,.zbtn:active,.info-btn:active,.brk-fs-btn:active,a.btn:active{transform:scale(.96)}
 @media (prefers-reduced-motion:reduce){.live-dot{animation:none}.sec-in{animation:none}}
+.sb-score{font-family:'Anton',sans-serif;color:#fff;background:rgba(255,82,64,.9);border-radius:6px;padding:0 8px;font-size:.85em;letter-spacing:.02em}
+.statusbar[data-jump]{cursor:pointer}
+.statusbar[data-jump]:hover{border-color:rgba(231,189,87,.6)}
+.statusbar[data-jump]:active{transform:scale(.99)}
 </style>
 </head>
 <body>
@@ -812,9 +816,12 @@ function highlightsLink(home,away){
   return `<a class="btn replay" href="https://www.bbc.co.uk/iplayer/search?q=${q}" target="_blank" rel="noopener" title="Watch highlights on BBC iPlayer">▶ Highlights</a>`;
 }
 /* ---- live / status helpers ---- */
-function isLive(f){const k=new Date(f[4]).getTime(),now=Date.now();return now>=k&&now<k+7200000&&!state.results[f[0]];}
-function liveMatches(){return FIX.filter(isLive);}
-function upcomingMatches(){const now=Date.now();return FIX.filter(f=>new Date(f[4]).getTime()>now&&!state.results[f[0]]).sort((a,b)=>new Date(a[4])-new Date(b[4]));}
+const LIVE_MIN=120; // minutes a match is treated as in-progress from kickoff
+function matchPhase(f){const k=new Date(f[4]).getTime(),now=Date.now();if(now<k)return "upcoming";if(now<k+LIVE_MIN*60000)return "live";return "finished";}
+function isLive(f){return matchPhase(f)==="live";}
+function phaseList(p){return FIX.filter(f=>matchPhase(f)===p);}
+function liveMatches(){return phaseList("live").sort((a,b)=>new Date(a[4])-new Date(b[4]));}
+function upcomingMatches(){return phaseList("upcoming").sort((a,b)=>new Date(a[4])-new Date(b[4]));}
 function todayMatches(){return FIX.filter(f=>isToday(f[4]));}
 function tzAbbr(){return state.tz==="UK"?"BST":"AEST";}
 function fmtCountdown(ms){
@@ -827,9 +834,10 @@ function matchCard(f){
   const[id,g,home,away,utc,venue,ukChan]=f;
   const r=state.results[id];
   const done=!!r&&!editing.has(id);
-  const live=!done&&isLive(f);
+  const live=isLive(f);
+  const tag=live?'<span class="ft-tag lt"><i class="live-dot"></i>LIVE</span>':(done?'<span class="ft-tag">FULL TIME</span>':"");
   return `<div class="match ${done?"done":""} ${live?"live":""}" data-id="${id}">
-    ${done?'<span class="ft-tag">FULL TIME</span>':live?'<span class="ft-tag lt"><i class="live-dot"></i>LIVE</span>':""}
+    ${tag}
     <div class="mtop"><span><span class="grp">Group ${g}</span> &middot; ${venue}</span><span>${shortDay(utc)} &middot; ${timeLabel(utc)} ${tzAbbr()}</span></div>
     <div class="teams">
       <div class="team"><span class="fl">${fl(home)}</span><span class="nm">${esc(home)}</span></div>
@@ -846,21 +854,21 @@ function matchCard(f){
 function fixturesStatus(){
   const live=liveMatches(),up=upcomingMatches();
   if(live.length){
-    const f=live[0],more=live.length-1;
+    const f=live[0],more=live.length-1,sc=state.results[f[0]];
     return `<div class="statusbar is-live">
       <div class="sb-info">
         <div class="sb-kicker"><i class="live-dot"></i> Live now</div>
-        <div class="sb-teams"><span class="fl">${fl(f[2])}</span> ${esc(f[2])} <em>v</em> <span class="fl">${fl(f[3])}</span> ${esc(f[3])}</div>
+        <div class="sb-teams"><span class="fl">${fl(f[2])}</span> ${esc(f[2])} ${sc?`<span class="sb-score">${sc[0]}–${sc[1]}</span>`:"<em>v</em>"} <span class="fl">${fl(f[3])}</span> ${esc(f[3])}</div>
         <div class="sb-meta">Group ${f[1]} &middot; ${f[5]} &middot; kicked off ${timeLabel(f[4])} ${tzAbbr()}</div>
       </div>
-      <div class="sb-right"><button class="chip" data-fix="live">${more>0?`+${more} more live`:"View live"}</button></div>
+      <div class="sb-right"><button class="chip" data-fix="live">${more>0?`+${more} more live`:"All live"}</button></div>
     </div>`;
   }
   if(up.length){
     const f=up[0];
-    return `<div class="statusbar">
+    return `<div class="statusbar" data-jump="${dayKey(f[4])}" role="button" tabindex="0">
       <div class="sb-info">
-        <div class="sb-kicker">⏱ Next match</div>
+        <div class="sb-kicker">⏱ Next match &middot; tap to view</div>
         <div class="sb-teams"><span class="fl">${fl(f[2])}</span> ${esc(f[2])} <em>v</em> <span class="fl">${fl(f[3])}</span> ${esc(f[3])}</div>
         <div class="sb-meta">Group ${f[1]} &middot; ${f[5]} &middot; ${dayLabel(f[4])} &middot; ${timeLabel(f[4])} ${tzAbbr()}</div>
       </div>
@@ -870,19 +878,19 @@ function fixturesStatus(){
   return `<div class="statusbar"><div class="sb-info"><div class="sb-kicker">🏁 Schedule</div><div class="sb-teams">All group fixtures done</div><div class="sb-meta">Head to Knockouts for the live bracket</div></div></div>`;
 }
 function renderFixtures(){
-  const liveN=liveMatches().length, todayN=todayMatches().length;
+  const todayN=todayMatches().length, liveN=liveMatches().length, upN=upcomingMatches().length, finN=phaseList("finished").length;
   let list=FIX.filter(f=>groupFilter==="ALL"||f[1]===groupFilter);
   if(fixFilter==="today")list=list.filter(f=>isToday(f[4]));
   else if(fixFilter==="live")list=list.filter(isLive);
-  else if(fixFilter==="upcoming")list=list.filter(f=>new Date(f[4]).getTime()>Date.now()&&!state.results[f[0]]);
-  else if(fixFilter==="finished")list=list.filter(f=>state.results[f[0]]&&!editing.has(f[0]));
+  else if(fixFilter==="upcoming")list=list.filter(f=>matchPhase(f)==="upcoming");
+  else if(fixFilter==="finished")list=list.filter(f=>matchPhase(f)==="finished");
   let html=fixturesStatus();
   html+=`<div class="chips">
     <button class="chip ${fixFilter==="all"?"on":""}" data-fix="all">All</button>
     <button class="chip ${fixFilter==="today"?"on":""}" data-fix="today">Today${todayN?` <b>${todayN}</b>`:""}</button>
     <button class="chip ${fixFilter==="live"?"on":""}" data-fix="live"><i class="live-dot sm"></i> Live${liveN?` <b>${liveN}</b>`:""}</button>
-    <button class="chip ${fixFilter==="upcoming"?"on":""}" data-fix="upcoming">Upcoming</button>
-    <button class="chip ${fixFilter==="finished"?"on":""}" data-fix="finished">Finished</button>
+    <button class="chip ${fixFilter==="upcoming"?"on":""}" data-fix="upcoming">Upcoming${upN?` <b>${upN}</b>`:""}</button>
+    <button class="chip ${fixFilter==="finished"?"on":""}" data-fix="finished">Finished${finN?` <b>${finN}</b>`:""}</button>
   </div>`;
   html+=`<div class="filters">
     <label for="gsel">Group</label>
@@ -898,13 +906,28 @@ function renderFixtures(){
   }else{
     keys.forEach(k=>{
       const dl=days[k].sort((a,b)=>new Date(a[4])-new Date(b[4]));
-      html+=`<div class="day"><h3>${dayLabel(dl[0][4])}${isToday(dl[0][4])?'<span class="today">TODAY</span>':""}</h3>
+      html+=`<div class="day" id="day-${k}"><h3>${dayLabel(dl[0][4])}${isToday(dl[0][4])?'<span class="today">TODAY</span>':""}</h3>
         ${dl.map(matchCard).join("")}</div>`;
     });
   }
   view.innerHTML=html;
   document.getElementById("gsel").addEventListener("change",e=>{groupFilter=e.target.value;renderFixtures();});
   view.querySelectorAll(".chip[data-fix]").forEach(c=>c.addEventListener("click",()=>{fixFilter=c.dataset.fix;renderFixtures();}));
+  const sb=view.querySelector(".statusbar[data-jump]");
+  if(sb){const go=()=>{const key=sb.dataset.jump;if(fixFilter!=="all"){fixFilter="all";renderFixtures();}requestAnimationFrame(()=>jumpToDay(key));};
+    sb.addEventListener("click",go);sb.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}});}
+}
+function jumpToDay(key){
+  const el=document.getElementById("day-"+key);if(!el)return;
+  const head=document.querySelector(".sticky-head");
+  const y=el.getBoundingClientRect().top+window.scrollY-(head?head.offsetHeight:90)-8;
+  window.scrollTo({top:Math.max(0,y),behavior:"smooth"});
+}
+function landOnToday(){
+  const live=liveMatches(),up=upcomingMatches();
+  const key=live.length?dayKey(live[0][4]):up.length?dayKey(up[0][4]):null;
+  if(fixFilter!=="all"||!key){scrollToContent();return;}
+  requestAnimationFrame(()=>jumpToDay(key));
 }
 function renderGroups(){
   let html=`<div class="filters">
@@ -1215,7 +1238,7 @@ document.querySelectorAll("nav.tabs button").forEach(b=>b.addEventListener("clic
   document.querySelectorAll("nav.tabs button").forEach(x=>x.classList.toggle("on",x===b));
   render();
   animateView();
-  scrollToContent();
+  if(tab==="fixtures")landOnToday();else scrollToContent();
 }));
 function scrollToContent(){
   const head=document.querySelector(".sticky-head");
