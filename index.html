@@ -228,7 +228,7 @@ tr.q3 td:first-child{box-shadow:inset 4px 0 0 var(--gold)}
   background:linear-gradient(180deg,var(--card),var(--card-2));border:1px solid rgba(244,239,226,.14);
   font-size:12px;display:flex;flex-direction:column;
 }
-.bx .lab{font-size:9px;letter-spacing:.08em;color:var(--gold);padding:2px 7px 0;text-transform:uppercase;opacity:.85}
+.bx .lab{font-size:9px;letter-spacing:.05em;color:var(--gold);padding:3px 7px 2px;text-transform:uppercase;opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid rgba(244,239,226,.1)}
 .bx .row{display:flex;align-items:center;gap:5px;padding:0 7px;flex:1;min-height:0}
 .bx .row+.row{border-top:1px solid rgba(244,239,226,.1)}
 .bx .row .fl{font-size:14px;flex:none}
@@ -307,6 +307,61 @@ tr.q3 td:first-child{box-shadow:inset 4px 0 0 var(--gold)}
 a.btn{text-decoration:none;display:inline-flex;align-items:center;gap:5px}
 .btn.replay{border-color:var(--gold);color:var(--gold);background:rgba(231,189,87,.10)}
 .btn.replay:hover{background:var(--gold);color:#22190a}
+/* ---------- app-feel UX layer ---------- */
+html,body{overscroll-behavior-y:none}
+body{-webkit-tap-highlight-color:transparent}
+.container{padding-bottom:calc(90px + env(safe-area-inset-bottom,0px))}
+.sticky-head{padding-top:calc(10px + env(safe-area-inset-top,0px))}
+
+/* now / next status bar */
+.statusbar{display:flex;align-items:center;justify-content:space-between;gap:14px;
+  background:linear-gradient(135deg,rgba(231,189,87,.16),rgba(17,66,49,.55));
+  border:1px solid rgba(231,189,87,.35);border-radius:16px;padding:14px 16px;margin-bottom:14px;
+  box-shadow:0 8px 22px rgba(0,0,0,.24)}
+.statusbar.is-live{background:linear-gradient(135deg,rgba(224,73,59,.24),rgba(17,66,49,.55));border-color:rgba(224,73,59,.5)}
+.sb-info{min-width:0}
+.sb-kicker{font:700 11px 'Space Grotesk',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.statusbar.is-live .sb-kicker{color:#ff8273}
+.sb-teams{font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(18px,5vw,25px);letter-spacing:.02em;line-height:1.06;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sb-teams em{font-style:normal;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12px;color:var(--muted)}
+.sb-teams .fl{font-size:22px}
+.sb-meta{margin-top:5px;font-size:12px;color:var(--muted)}
+.sb-right{text-align:right;flex:none}
+.sb-count{font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(20px,6vw,28px);color:var(--gold);letter-spacing:.03em;font-variant-numeric:tabular-nums;line-height:1}
+.sb-countlbl{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:2px}
+
+/* quick-filter chips */
+.chips{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;margin-bottom:12px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;font:700 13px 'Space Grotesk',sans-serif;letter-spacing:.02em;border:1px solid var(--soft);
+  background:rgba(255,255,255,.05);color:var(--muted);border-radius:999px;padding:8px 14px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;min-height:38px;white-space:nowrap}
+.chip b{background:rgba(231,189,87,.22);color:var(--gold);border-radius:999px;padding:1px 7px;font-size:11px}
+.chip:hover{color:var(--ink);border-color:rgba(243,239,227,.25)}
+.chip.on{background:var(--gold);color:#22190a;border-color:var(--gold)}
+.chip.on b{background:rgba(34,25,10,.2);color:#22190a}
+
+/* live pulse */
+.live-dot{width:9px;height:9px;border-radius:50%;background:#ff5240;display:inline-block;animation:pulse 1.4s infinite}
+.live-dot.sm{width:7px;height:7px}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,82,64,.55)}70%{box-shadow:0 0 0 7px rgba(255,82,64,0)}100%{box-shadow:0 0 0 0 rgba(255,82,64,0)}}
+.ft-tag.lt{background:#ff5240;color:#fff;display:flex;align-items:center;gap:5px}
+.match.live{border-color:rgba(255,82,64,.5);box-shadow:0 0 0 1px rgba(255,82,64,.22)}
+
+/* sticky day headers */
+.day h3{position:sticky;top:calc(var(--head-h,104px) + 2px);z-index:20;
+  background:rgba(8,33,25,.93);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  margin:0 -16px 12px;padding:9px 16px;border-bottom:1px solid var(--soft)}
+
+/* empty state */
+.empty{text-align:center;color:var(--muted);font-size:14px;padding:38px 16px;line-height:2.2}
+
+/* section transition + tap feedback */
+@keyframes secIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.sec-in{animation:secIn .24s cubic-bezier(.2,.7,.3,1)}
+.btn,.chip,.sync-btn,nav.tabs button,.tz button,.zbtn,.info-btn,.brk-fs-btn,a.btn{transition:transform .1s ease,background .15s,color .15s,border-color .15s}
+.btn:active,.chip:active,.sync-btn:active,nav.tabs button:active,.tz button:active,.zbtn:active,.info-btn:active,.brk-fs-btn:active,a.btn:active{transform:scale(.96)}
+@media (prefers-reduced-motion:reduce){.live-dot{animation:none}.sec-in{animation:none}}
 </style>
 </head>
 <body>
@@ -729,7 +784,7 @@ async function syncScores(auto){
 }
 /* ================= RENDER ================= */
 const view=document.getElementById("view");
-let tab="fixtures",groupFilter="ALL",groupView="ALL",koView="bracket",brkTeam="",brkScrollLeft=null;
+let tab="fixtures",groupFilter="ALL",groupView="ALL",fixFilter="all",koView="bracket",brkTeam="",brkScrollLeft=null;
 function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;");}
 function fl(t){return FLAGS[t]||"⚽";}
 function chanHTML(ukChan,koNo){
@@ -756,13 +811,26 @@ function highlightsLink(home,away){
   const q=encodeURIComponent(home+" v "+away);
   return `<a class="btn replay" href="https://www.bbc.co.uk/iplayer/search?q=${q}" target="_blank" rel="noopener" title="Watch highlights on BBC iPlayer">▶ Highlights</a>`;
 }
+/* ---- live / status helpers ---- */
+function isLive(f){const k=new Date(f[4]).getTime(),now=Date.now();return now>=k&&now<k+7200000&&!state.results[f[0]];}
+function liveMatches(){return FIX.filter(isLive);}
+function upcomingMatches(){const now=Date.now();return FIX.filter(f=>new Date(f[4]).getTime()>now&&!state.results[f[0]]).sort((a,b)=>new Date(a[4])-new Date(b[4]));}
+function todayMatches(){return FIX.filter(f=>isToday(f[4]));}
+function tzAbbr(){return state.tz==="UK"?"BST":"AEST";}
+function fmtCountdown(ms){
+  if(ms<=0)return "Kicking off…";
+  const s=Math.floor(ms/1000),d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60),x=s%60;
+  if(d>0)return d+"d "+String(h).padStart(2,"0")+"h "+String(m).padStart(2,"0")+"m";
+  return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(x).padStart(2,"0");
+}
 function matchCard(f){
   const[id,g,home,away,utc,venue,ukChan]=f;
   const r=state.results[id];
   const done=!!r&&!editing.has(id);
-  return `<div class="match ${done?"done":""}" data-id="${id}">
-    ${done?'<span class="ft-tag">FULL TIME</span>':""}
-    <div class="mtop"><span><span class="grp">Group ${g}</span> &middot; ${venue}</span><span>⏰ ${timeLabel(utc)} ${state.tz==="UK"?"BST":"AEST"}</span></div>
+  const live=!done&&isLive(f);
+  return `<div class="match ${done?"done":""} ${live?"live":""}" data-id="${id}">
+    ${done?'<span class="ft-tag">FULL TIME</span>':live?'<span class="ft-tag lt"><i class="live-dot"></i>LIVE</span>':""}
+    <div class="mtop"><span><span class="grp">Group ${g}</span> &middot; ${venue}</span><span>${shortDay(utc)} &middot; ${timeLabel(utc)} ${tzAbbr()}</span></div>
     <div class="teams">
       <div class="team"><span class="fl">${fl(home)}</span><span class="nm">${esc(home)}</span></div>
       ${scoreCell(id,home,away,utc)}
@@ -771,27 +839,72 @@ function matchCard(f){
     <div class="mbot">
       <div class="tv">${chanHTML(ukChan)}</div>
       ${done?`<div class="actions">${highlightsLink(home,away)}<button class="btn ghost" data-edit="${id}">Edit</button></div>`
-            :`<button class="btn" data-save="${id}">Save result</button>`}
+            :`<button class="btn" data-save="${id}">${live?"Enter score":"Save result"}</button>`}
     </div>
   </div>`;
 }
+function fixturesStatus(){
+  const live=liveMatches(),up=upcomingMatches();
+  if(live.length){
+    const f=live[0],more=live.length-1;
+    return `<div class="statusbar is-live">
+      <div class="sb-info">
+        <div class="sb-kicker"><i class="live-dot"></i> Live now</div>
+        <div class="sb-teams"><span class="fl">${fl(f[2])}</span> ${esc(f[2])} <em>v</em> <span class="fl">${fl(f[3])}</span> ${esc(f[3])}</div>
+        <div class="sb-meta">Group ${f[1]} &middot; ${f[5]} &middot; kicked off ${timeLabel(f[4])} ${tzAbbr()}</div>
+      </div>
+      <div class="sb-right"><button class="chip" data-fix="live">${more>0?`+${more} more live`:"View live"}</button></div>
+    </div>`;
+  }
+  if(up.length){
+    const f=up[0];
+    return `<div class="statusbar">
+      <div class="sb-info">
+        <div class="sb-kicker">⏱ Next match</div>
+        <div class="sb-teams"><span class="fl">${fl(f[2])}</span> ${esc(f[2])} <em>v</em> <span class="fl">${fl(f[3])}</span> ${esc(f[3])}</div>
+        <div class="sb-meta">Group ${f[1]} &middot; ${f[5]} &middot; ${dayLabel(f[4])} &middot; ${timeLabel(f[4])} ${tzAbbr()}</div>
+      </div>
+      <div class="sb-right"><div class="sb-count" id="nextCountdown">${fmtCountdown(new Date(f[4]).getTime()-Date.now())}</div><div class="sb-countlbl">until kickoff</div></div>
+    </div>`;
+  }
+  return `<div class="statusbar"><div class="sb-info"><div class="sb-kicker">🏁 Schedule</div><div class="sb-teams">All group fixtures done</div><div class="sb-meta">Head to Knockouts for the live bracket</div></div></div>`;
+}
 function renderFixtures(){
-  const fs=FIX.filter(f=>groupFilter==="ALL"||f[1]===groupFilter);
-  const days={};fs.forEach(f=>{(days[dayKey(f[4])]=days[dayKey(f[4])]||[]).push(f);});
-  let html=`<div class="filters">
-    <label for="gsel">Show</label>
+  const liveN=liveMatches().length, todayN=todayMatches().length;
+  let list=FIX.filter(f=>groupFilter==="ALL"||f[1]===groupFilter);
+  if(fixFilter==="today")list=list.filter(f=>isToday(f[4]));
+  else if(fixFilter==="live")list=list.filter(isLive);
+  else if(fixFilter==="upcoming")list=list.filter(f=>new Date(f[4]).getTime()>Date.now()&&!state.results[f[0]]);
+  else if(fixFilter==="finished")list=list.filter(f=>state.results[f[0]]&&!editing.has(f[0]));
+  let html=fixturesStatus();
+  html+=`<div class="chips">
+    <button class="chip ${fixFilter==="all"?"on":""}" data-fix="all">All</button>
+    <button class="chip ${fixFilter==="today"?"on":""}" data-fix="today">Today${todayN?` <b>${todayN}</b>`:""}</button>
+    <button class="chip ${fixFilter==="live"?"on":""}" data-fix="live"><i class="live-dot sm"></i> Live${liveN?` <b>${liveN}</b>`:""}</button>
+    <button class="chip ${fixFilter==="upcoming"?"on":""}" data-fix="upcoming">Upcoming</button>
+    <button class="chip ${fixFilter==="finished"?"on":""}" data-fix="finished">Finished</button>
+  </div>`;
+  html+=`<div class="filters">
+    <label for="gsel">Group</label>
     <select class="gsel" id="gsel">
       <option value="ALL"${groupFilter==="ALL"?" selected":""}>All groups</option>
       ${Object.keys(GROUPS).map(g=>`<option value="${g}"${groupFilter===g?" selected":""}>Group ${g} — ${GROUPS[g].map(t=>fl(t)).join(" ")}</option>`).join("")}
     </select>
   </div>`;
-  Object.keys(days).forEach(k=>{
-    const list=days[k].sort((a,b)=>new Date(a[4])-new Date(b[4]));
-    html+=`<div class="day"><h3>${dayLabel(list[0][4])}${isToday(list[0][4])?'<span class="today">TODAY</span>':""}</h3>
-      ${list.map(matchCard).join("")}</div>`;
-  });
+  const days={};list.forEach(f=>{(days[dayKey(f[4])]=days[dayKey(f[4])]||[]).push(f);});
+  const keys=Object.keys(days);
+  if(!keys.length){
+    html+=`<div class="empty">⚽ Nothing matches this filter.<br><button class="chip on" data-fix="all">Show all fixtures</button></div>`;
+  }else{
+    keys.forEach(k=>{
+      const dl=days[k].sort((a,b)=>new Date(a[4])-new Date(b[4]));
+      html+=`<div class="day"><h3>${dayLabel(dl[0][4])}${isToday(dl[0][4])?'<span class="today">TODAY</span>':""}</h3>
+        ${dl.map(matchCard).join("")}</div>`;
+    });
+  }
   view.innerHTML=html;
   document.getElementById("gsel").addEventListener("change",e=>{groupFilter=e.target.value;renderFixtures();});
+  view.querySelectorAll(".chip[data-fix]").forEach(c=>c.addEventListener("click",()=>{fixFilter=c.dataset.fix;renderFixtures();}));
 }
 function renderGroups(){
   let html=`<div class="filters">
@@ -921,7 +1034,7 @@ function drawBracket(canvas){
   const M=buildKO();
   const route=teamRoute(brkTeam);
   // geometry
-  const BW=152,BH=52,SLOT=66,COLGAP=42,HEADY=28,TOP=HEADY+8;
+  const BW=170,BH=66,SLOT=82,COLGAP=42,HEADY=28,TOP=HEADY+8;
   const colX=i=>i*(BW+COLGAP);
   const cx=new Array(9).fill(0).map((_,i)=>colX(i));
   // match orderings per the bracket tree
@@ -976,8 +1089,10 @@ function drawBracket(canvas){
         <span class="nm${hl}" ${known?`data-team="${esc(team)}"`:""}>${esc(disp)}</span>
         <span class="sc">${sc!==""?sc:""}</span></div>`;
     };
+    const when=`${shortDay(m.utc)} &middot; ${timeLabel(m.utc)} ${state.tz==="UK"?"BST":"AEST"}`;
     boxes+=`<div class="bx ${rt?"right":""} ${onRoute?"on-route":""} ${fin?"final-bx":""}"
       style="left:${x}px;top:${y}px;width:${BW}px;height:${BH}px">
+      <div class="lab">${when}</div>
       ${rowHTML(m.home,m.hConf,m.homeLbl,true)}
       ${rowHTML(m.away,m.aConf,m.awayLbl,false)}
     </div>`;
@@ -1099,6 +1214,7 @@ document.querySelectorAll("nav.tabs button").forEach(b=>b.addEventListener("clic
   tab=b.dataset.tab;
   document.querySelectorAll("nav.tabs button").forEach(x=>x.classList.toggle("on",x===b));
   render();
+  animateView();
   scrollToContent();
 }));
 function scrollToContent(){
@@ -1107,6 +1223,16 @@ function scrollToContent(){
   if(!head||!top)return;
   const y=top.getBoundingClientRect().top+window.scrollY-head.offsetHeight-6;
   window.scrollTo({top:Math.max(0,y),behavior:"smooth"});
+}
+function animateView(){view.classList.remove("sec-in");void view.offsetWidth;view.classList.add("sec-in");}
+function syncHeadH(){const h=document.querySelector(".sticky-head");if(h)document.documentElement.style.setProperty("--head-h",h.offsetHeight+"px");}
+window.addEventListener("resize",syncHeadH);
+function tickCountdown(){
+  const el=document.getElementById("nextCountdown");if(!el)return;
+  const up=upcomingMatches();if(!up.length){el.textContent="—";return;}
+  const ms=new Date(up[0][4]).getTime()-Date.now();
+  el.textContent=fmtCountdown(ms);
+  if(ms<=0&&ms>-1500&&tab==="fixtures")renderKeep();
 }
 document.getElementById("tzUK").addEventListener("click",()=>setTZ("UK"));
 document.getElementById("tzAU").addEventListener("click",()=>setTZ("AU"));
@@ -1193,6 +1319,9 @@ document.getElementById("syncBtn").addEventListener("click",()=>syncScores(false
 /* ================= INIT ================= */
 (async()=>{
   await loadState();setTZ(state.tz||"UK");
+  syncHeadH();requestAnimationFrame(syncHeadH);
+  animateView();
+  setInterval(tickCountdown,1000);
   if(Date.now()-(state.lastSync||0)>2*3600*1000)syncScores(true);
 })();
 </script>
