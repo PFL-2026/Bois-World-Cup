@@ -716,6 +716,14 @@ function normTeam(n){
 const FIN_ST=new Set(["ft","aet","pen","match finished","finished","fin","awarded","aot"]);
 const NS_ST=new Set(["ns","not started","","postponed","tbd","sched","scheduled","pst","canc","cancelled","abd"]);
 const LIVE_ST=["1h","2h","ht","et","bt","p","live","first half","second half","half time","halftime","extra time","penalties","break","1st half","2nd half","in play","playing"];
+function feedUTC(ev){
+  // TheSportsDB times are UTC but often lack a timezone marker — force UTC parsing
+  const norm=s=>{s=(s||"").trim().replace(" ","T");if(!s)return null;if(!/[zZ]|[+-]\d\d:?\d\d$/.test(s))s+="Z";return isNaN(new Date(s).getTime())?null:s;};
+  if(ev.strTimestamp){const s=norm(ev.strTimestamp);if(s)return s;}
+  if(ev.dateEvent&&ev.strTime){const s=norm(ev.dateEvent+" "+ev.strTime);if(s)return s;}
+  if(ev.dateEvent)return ev.dateEvent+"T12:00:00Z";
+  return null;
+}
 function statusKind(ev){
   const s=(ev.strStatus||"").toString().trim().toLowerCase();
   if(FIN_ST.has(s))return "fin";
@@ -776,10 +784,10 @@ async function syncScores(auto){
   res.evs.forEach(ev=>{
     const h=normTeam(ev.strHomeTeam||""),a=normTeam(ev.strAwayTeam||"");
     if(!h||!a)return;
-    let t=ev.strTimestamp?new Date(ev.strTimestamp).getTime():(ev.dateEvent?new Date(ev.dateEvent+"T12:00Z").getTime():now);
-    if(isNaN(t))t=now;
+    const ts=feedUTC(ev);
+    let t=ts?new Date(ts).getTime():now;if(isNaN(t))t=now;
     const m=findFixture(h,a,t);if(!m)return;
-    if(ev.strTimestamp&&!m.ko){const ot=new Date(ev.strTimestamp).getTime();if(!isNaN(ot))overrides[m.id]=ev.strTimestamp;}
+    if(ts&&!m.ko)overrides[m.id]=ts;
     const kind=statusKind(ev);
     const hs=parseInt(ev.intHomeScore,10),as=parseInt(ev.intAwayScore,10);
     const haveScore=!(isNaN(hs)||isNaN(as));
@@ -1389,6 +1397,7 @@ document.getElementById("syncBtn").addEventListener("click",()=>syncScores(false
 /* ================= INIT ================= */
 (async()=>{
   await loadState();setTZ(state.tz||"UK");
+  if(state.koTimes){Object.keys(state.koTimes).forEach(k=>{const v=state.koTimes[k];if(typeof v!=="string"||v.indexOf("T")<0)delete state.koTimes[k];});}
   syncHeadH();requestAnimationFrame(syncHeadH);
   animateView();
   setInterval(tickCountdown,1000);
