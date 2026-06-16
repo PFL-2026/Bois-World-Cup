@@ -366,6 +366,17 @@ body{-webkit-tap-highlight-color:transparent}
 .statusbar[data-jump]{cursor:pointer}
 .statusbar[data-jump]:hover{border-color:rgba(231,189,87,.6)}
 .statusbar[data-jump]:active{transform:scale(.99)}
+.feedstat{font-size:11px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;margin-left:auto;white-space:nowrap}
+.feedstat .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+.feedstat .dot.ok{background:var(--green-q)}
+.feedstat .dot.off{background:#caa23f}
+.results-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
+.rh-title{font-family:'Anton',sans-serif;font-weight:400;font-size:26px;letter-spacing:.04em;text-transform:uppercase;color:var(--gold)}
+.rh-sub{font-size:12px;color:var(--muted)}
+.ft-tag.await{background:rgba(243,239,227,.18);color:var(--ink)}
+.about-row{text-align:center;margin:34px 0 0}
+@media (max-width:560px){nav.tabs button{font-size:13px;padding:11px 3px;letter-spacing:.02em}}
+@media (max-width:380px){nav.tabs button{font-size:11.5px;padding:11px 2px}}
 </style>
 </head>
 <body>
@@ -392,6 +403,7 @@ body{-webkit-tap-highlight-color:transparent}
     </div>
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button data-tab="fixtures" class="on">Fixtures</button>
+      <button data-tab="results">Results</button>
       <button data-tab="groups">Groups</button>
       <button data-tab="knockout">Knockouts</button>
     </nav>
@@ -406,11 +418,7 @@ body{-webkit-tap-highlight-color:transparent}
   <div id="contentTop"></div>
   <main id="view"></main>
 
-<p class="note" id="footnote">
-🇬🇧 <b>UK:</b> every match is free-to-air on BBC or ITV. Where the broadcaster hasn't been confirmed for a specific game yet it's marked "BBC or ITV" — check BBC Sport / ITVX listings on the day.
-&nbsp;🇦🇺 <b>Australia:</b> SBS has exclusive free-to-air rights — every one of the 104 matches is live on SBS / SBS VICELAND and streams free on SBS On Demand. Australian times shown in AEST (Brisbane time, UTC+10) — same clock as Sydney/Melbourne during the tournament; knock off 30 min for Adelaide, 2 hrs for Perth.
-<br><br>Results sync in automatically from official sources when you open the app (🔄 button to force a check) — or enter scores yourself and the sync will keep you honest. Tables update instantly, and once all 72 group games are in, the Round of 32 builds itself (top two from each group plus the eight best third-placed sides, slotted into the bracket per FIFA's allocation rules). Your results are saved in this app, so come back any time.
-</p>
+  <div class="about-row"><button class="info-btn" data-modal="about">ℹ️ About, data &amp; terms</button></div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -704,91 +712,105 @@ function normTeam(n){
   for(const g in GROUPS){for(const t of GROUPS[g]){if(t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")===k)return t;}}
   return n;
 }
-/* Apply a list of official results {h,a,hs,as,t} to fixtures & bracket */
-function applyOfficialResults(events,auto,src){
-  const KO=buildKO();
-  const cands=FIX.map(f=>({id:f[0],h:f[2],a:f[3],t:new Date(f[4]).getTime()}));
-  Object.values(KO).forEach(m=>{
-    if(m.home&&m.away&&m.hConf&&m.aConf)cands.push({id:"k"+m.no,h:m.home,a:m.away,t:new Date(m.utc).getTime(),ko:true});
-  });
-  let added=0,fixed=0,pensNeeded=[];
-  events.forEach(e=>{
-    let best=null,bestDiff=Infinity;
-    cands.forEach(c=>{
-      const pair=(c.h===e.h&&c.a===e.a)||(c.h===e.a&&c.a===e.h);
-      const diff=Math.abs(c.t-e.t);
-      if(pair&&diff<48*3600000&&diff<bestDiff){best=c;bestDiff=diff;}
-    });
-    if(!best)return;
-    const flip=best.h!==e.h;
-    const sh=flip?e.as:e.hs, sa=flip?e.hs:e.as;
-    const prev=state.results[best.id];
-    if(!prev){state.results[best.id]=[sh,sa];added++;}
-    else if(prev[0]!==sh||prev[1]!==sa){
-      if(best.ko){
-        const no=parseInt(best.id.slice(1),10);
-        const oldW=koWinner(no);
-        state.results[best.id]=[sh,sa];
-        const newW=sh>sa?"H":sh<sa?"A":state.pens[best.id]||null;
-        if(oldW&&newW!==oldW)clearDownstream(no);
-      }else state.results[best.id]=[sh,sa];
-      fixed++;
-    }
-    if(best.ko&&sh===sa&&!state.pens[best.id])pensNeeded.push(best.h+" v "+best.a);
-  });
-  if(added||fixed){
-    state.lastSync=Date.now();saveState();renderKeep();
-    toast("Official results synced ("+src+"): "+added+" new"+(fixed?", "+fixed+" corrected":"")+" ✅"+(pensNeeded.length?" — pick the pens winner for "+pensNeeded.join(", "):""));
-    return true;
-  }
-  state.lastSync=Date.now();saveState();
-  if(!auto)toast("All up to date — no new finished matches");
-  return false;
+/* ---------- official feed: results + live scores + kickoff overrides ---------- */
+const FIN_ST=new Set(["ft","aet","pen","match finished","finished","fin","awarded","aot"]);
+const NS_ST=new Set(["ns","not started","","postponed","tbd","sched","scheduled","pst","canc","cancelled","abd"]);
+const LIVE_ST=["1h","2h","ht","et","bt","p","live","first half","second half","half time","halftime","extra time","penalties","break","1st half","2nd half","in play","playing"];
+function statusKind(ev){
+  const s=(ev.strStatus||"").toString().trim().toLowerCase();
+  if(FIN_ST.has(s))return "fin";
+  if(NS_ST.has(s))return "ns";
+  if(/^\d/.test(s)||LIVE_ST.includes(s))return "live";
+  return "unknown";
 }
-/* Primary source: TheSportsDB (free, no key, no setup) — FIFA World Cup league 4429 */
-async function syncSportsDB(auto){
-  let events=[];
-  // try multiple key/endpoint/season variants until one yields data
+function findFixture(h,a,t){
+  const cands=FIX.map(f=>({id:f[0],h:f[2],a:f[3],t:new Date(koUTC(f)).getTime(),ko:false}));
+  const KO=buildKO();
+  Object.values(KO).forEach(m=>{if(m.home&&m.away&&m.hConf&&m.aConf)cands.push({id:"k"+m.no,h:m.home,a:m.away,t:new Date(m.utc).getTime(),ko:true});});
+  let best=null,bd=Infinity;
+  cands.forEach(c=>{
+    const pair=(c.h===h&&c.a===a)||(c.h===a&&c.a===h);
+    const diff=Math.abs(c.t-t);
+    if(pair&&diff<3*24*3600000&&diff<bd){best=c;bd=diff;}
+  });
+  if(!best)return null;
+  return {id:best.id,flip:best.h!==h,ko:best.ko};
+}
+function applyResult(id,ko,sh,sa){
+  const prev=state.results[id];
+  if(!prev){state.results[id]=[sh,sa];return 1;}
+  if(prev[0]!==sh||prev[1]!==sa){
+    if(ko){const no=parseInt(id.slice(1),10);const oldW=koWinner(no);state.results[id]=[sh,sa];const newW=sh>sa?"H":sh<sa?"A":state.pens[id]||null;if(oldW&&newW!==oldW)clearDownstream(no);}
+    else state.results[id]=[sh,sa];
+    return 2;
+  }
+  return 0;
+}
+async function fetchFeed(){
   const tries=[
     "https://www.thesportsdb.com/api/v1/json/123/eventsseason.php?id=4429&s=2026",
     "https://www.thesportsdb.com/api/v1/json/3/eventsseason.php?id=4429&s=2026",
     "https://www.thesportsdb.com/api/v1/json/123/eventsseason.php?id=4429&s=2025-2026",
+    "https://www.thesportsdb.com/api/v1/json/123/eventsnextleague.php?id=4429",
     "https://www.thesportsdb.com/api/v1/json/123/eventspastleague.php?id=4429",
     "https://www.thesportsdb.com/api/v1/json/3/eventspastleague.php?id=4429"
   ];
+  let evs=[],ok=false;
   for(const url of tries){
-    try{
-      const r=await fetch(url);
-      if(r.ok){
-        const j=await r.json();
-        if(j&&Array.isArray(j.events)&&j.events.length){events=j.events;break;}
-      }
-    }catch(e){}
+    try{const r=await fetch(url);if(r.ok){ok=true;const j=await r.json();const arr=(j&&j.events)||[];if(arr.length)evs=evs.concat(arr);}}catch(e){}
   }
-  // safety: only FIFA World Cup events (ignore anything stray)
-  events=events.filter(ev=>!ev.idLeague||ev.idLeague==="4429");
-  if(!events.length)return null; // source unreachable / nothing yet
-  const now=Date.now();
-  const done=events.map(ev=>{
-    const hs=parseInt(ev.intHomeScore,10),as=parseInt(ev.intAwayScore,10);
-    if(isNaN(hs)||isNaN(as))return null;
-    let t=ev.strTimestamp?new Date(ev.strTimestamp).getTime():new Date(ev.dateEvent+"T12:00Z").getTime();
-    if(isNaN(t))t=now;
-    if(t>now-100*60000)return null; // hasn't realistically finished yet
-    return {h:normTeam(ev.strHomeTeam||""),a:normTeam(ev.strAwayTeam||""),hs,as,t};
-  }).filter(Boolean);
-  return applyOfficialResults(done,auto,"TheSportsDB");
+  const seen={};
+  evs=evs.filter(e=>{if(!e)return false;if(e.idLeague&&e.idLeague!=="4429")return false;const k=e.idEvent||((e.strHomeTeam||"")+(e.strAwayTeam||"")+(e.dateEvent||""));if(seen[k])return false;seen[k]=1;return true;});
+  return {ok,evs};
 }
 async function syncScores(auto){
   const btn=document.getElementById("syncBtn");if(btn)btn.classList.add("syncing");
-  if(!auto)toast("Checking official results…");
-  const ok=await syncSportsDB(auto);
-  if(ok===null&&!auto)toast("Results service unreachable right now — try again shortly");
+  if(!auto)toast("Checking the live feed…");
+  let res=null;try{res=await fetchFeed();}catch(e){res=null;}
   if(btn)btn.classList.remove("syncing");
+  if(!res||!res.ok){feedConnected=false;feedLive={};updateFeedStat();if(!auto)toast("Feed unreachable right now — try again shortly");return null;}
+  feedConnected=true;feedAt=Date.now();
+  const now=Date.now();
+  const newLive={},overrides=Object.assign({},state.koTimes||{});
+  let added=0,fixed=0,liveN=0;const pensNeeded=[];
+  res.evs.forEach(ev=>{
+    const h=normTeam(ev.strHomeTeam||""),a=normTeam(ev.strAwayTeam||"");
+    if(!h||!a)return;
+    let t=ev.strTimestamp?new Date(ev.strTimestamp).getTime():(ev.dateEvent?new Date(ev.dateEvent+"T12:00Z").getTime():now);
+    if(isNaN(t))t=now;
+    const m=findFixture(h,a,t);if(!m)return;
+    if(ev.strTimestamp&&!m.ko){const ot=new Date(ev.strTimestamp).getTime();if(!isNaN(ot))overrides[m.id]=ev.strTimestamp;}
+    const kind=statusKind(ev);
+    const hs=parseInt(ev.intHomeScore,10),as=parseInt(ev.intAwayScore,10);
+    const haveScore=!(isNaN(hs)||isNaN(as));
+    const sh=m.flip?as:hs, sa=m.flip?hs:as;
+    if(kind==="live"){
+      const mn=(ev.strProgress||ev.strStatus||"").toString().trim();
+      newLive[m.id]={sc:haveScore?[sh,sa]:null,min:/^\d+$/.test(mn)?mn+"'":mn};liveN++;
+    }else if((kind==="fin"||(kind==="unknown"&&t<now-100*60000))&&haveScore){
+      const c=applyResult(m.id,m.ko,sh,sa);if(c===1)added++;else if(c===2)fixed++;
+      if(m.ko&&sh===sa&&!state.pens[m.id])pensNeeded.push(h+" v "+a);
+    }
+  });
+  feedLive=newLive;state.koTimes=overrides;state.lastSync=Date.now();saveState();
+  renderKeep();updateFeedStat();
+  if(!auto){
+    if(added||fixed)toast("Synced ✅ "+added+" new"+(fixed?", "+fixed+" updated":"")+(liveN?` &middot; ${liveN} live 🔴`:""));
+    else if(liveN)toast(liveN+" match"+(liveN>1?"es":"")+" live now 🔴");
+    else toast("Up to date — no new results");
+  }
+  return (added||fixed)>0;
+}
+function scheduleSync(){
+  clearTimeout(syncTimer);
+  const live=liveMatches().length,soon=upcomingMatches()[0];
+  let delay=live?60000:10*60000;
+  if(!live&&soon){const dt=new Date(koUTC(soon)).getTime()-Date.now();if(dt>0&&dt<30*60000)delay=90000;}
+  syncTimer=setTimeout(async()=>{await syncScores(true);scheduleSync();},delay);
 }
 /* ================= RENDER ================= */
 const view=document.getElementById("view");
-let tab="fixtures",groupFilter="ALL",groupView="ALL",fixFilter="all",koView="bracket",brkTeam="",brkScrollLeft=null;
+let tab="fixtures",groupFilter="ALL",groupView="ALL",koView="bracket",brkTeam="",brkScrollLeft=null;
 function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;");}
 function fl(t){return FLAGS[t]||"⚽";}
 function chanHTML(ukChan,koNo){
@@ -815,14 +837,21 @@ function highlightsLink(home,away){
   const q=encodeURIComponent(home+" v "+away);
   return `<a class="btn replay" href="https://www.bbc.co.uk/iplayer/search?q=${q}" target="_blank" rel="noopener" title="Watch highlights on BBC iPlayer">▶ Highlights</a>`;
 }
-/* ---- live / status helpers ---- */
-const LIVE_MIN=120; // minutes a match is treated as in-progress from kickoff
-function matchPhase(f){const k=new Date(f[4]).getTime(),now=Date.now();if(now<k)return "upcoming";if(now<k+LIVE_MIN*60000)return "live";return "finished";}
-function isLive(f){return matchPhase(f)==="live";}
-function phaseList(p){return FIX.filter(f=>matchPhase(f)===p);}
-function liveMatches(){return phaseList("live").sort((a,b)=>new Date(a[4])-new Date(b[4]));}
-function upcomingMatches(){return phaseList("upcoming").sort((a,b)=>new Date(a[4])-new Date(b[4]));}
-function todayMatches(){return FIX.filter(f=>isToday(f[4]));}
+/* ---- live / status helpers (feed-aware) ---- */
+const LIVE_MIN=140; // minutes a match counts as in-progress (offline fallback only)
+let feedLive={};      // id -> {sc:[h,a], min} from the live feed
+let feedConnected=false, feedAt=0, syncTimer=null;
+function koUTC(f){return (state.koTimes&&state.koTimes[f[0]])||f[4];}
+function hasResult(f){return !!state.results[f[0]];}
+function isLive(f){
+  if(hasResult(f))return false;
+  if(feedLive[f[0]])return true;
+  const k=new Date(koUTC(f)).getTime(),now=Date.now();
+  return now>=k&&now<k+LIVE_MIN*60000;
+}
+function liveMatches(){return FIX.filter(isLive).sort((a,b)=>new Date(koUTC(a))-new Date(koUTC(b)));}
+function upcomingMatches(){const now=Date.now();return FIX.filter(f=>!hasResult(f)&&new Date(koUTC(f)).getTime()>now).sort((a,b)=>new Date(koUTC(a))-new Date(koUTC(b)));}
+function todayMatches(){return FIX.filter(f=>isToday(koUTC(f)));}
 function tzAbbr(){return state.tz==="UK"?"BST":"AEST";}
 function fmtCountdown(ms){
   if(ms<=0)return "Kicking off…";
@@ -831,91 +860,101 @@ function fmtCountdown(ms){
   return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(x).padStart(2,"0");
 }
 function matchCard(f){
-  const[id,g,home,away,utc,venue,ukChan]=f;
+  const[id,g,home,away,,venue,ukChan]=f;
+  const utc=koUTC(f);
   const r=state.results[id];
   const done=!!r&&!editing.has(id);
   const live=isLive(f);
-  const tag=live?'<span class="ft-tag lt"><i class="live-dot"></i>LIVE</span>':(done?'<span class="ft-tag">FULL TIME</span>':"");
+  const lf=feedLive[id];
+  const past=!done&&!live&&new Date(utc).getTime()<Date.now();
+  const tag=live?`<span class="ft-tag lt"><i class="live-dot"></i>LIVE${lf&&lf.min?" "+esc(lf.min):""}</span>`
+           :done?'<span class="ft-tag">FULL TIME</span>'
+           :past?'<span class="ft-tag await">AWAITING</span>':"";
+  const mid=(live&&lf&&lf.sc)?`<div class="score-mid"><span class="fin">${lf.sc[0]}</span><span>–</span><span class="fin">${lf.sc[1]}</span></div>`:scoreCell(id,home,away,utc);
   return `<div class="match ${done?"done":""} ${live?"live":""}" data-id="${id}">
     ${tag}
     <div class="mtop"><span><span class="grp">Group ${g}</span> &middot; ${venue}</span><span>${shortDay(utc)} &middot; ${timeLabel(utc)} ${tzAbbr()}</span></div>
     <div class="teams">
       <div class="team"><span class="fl">${fl(home)}</span><span class="nm">${esc(home)}</span></div>
-      ${scoreCell(id,home,away,utc)}
+      ${mid}
       <div class="team away"><span class="fl">${fl(away)}</span><span class="nm">${esc(away)}</span></div>
     </div>
     <div class="mbot">
       <div class="tv">${chanHTML(ukChan)}</div>
       ${done?`<div class="actions">${highlightsLink(home,away)}<button class="btn ghost" data-edit="${id}">Edit</button></div>`
-            :`<button class="btn" data-save="${id}">${live?"Enter score":"Save result"}</button>`}
+            :`<button class="btn" data-save="${id}">${live?"Enter final score":"Save result"}</button>`}
     </div>
   </div>`;
 }
 function fixturesStatus(){
   const live=liveMatches(),up=upcomingMatches();
   if(live.length){
-    const f=live[0],more=live.length-1,sc=state.results[f[0]];
-    return `<div class="statusbar is-live">
+    const f=live[0],more=live.length-1,lf=feedLive[f[0]];
+    return `<div class="statusbar is-live" data-jump="${dayKey(koUTC(f))}" role="button" tabindex="0">
       <div class="sb-info">
-        <div class="sb-kicker"><i class="live-dot"></i> Live now</div>
-        <div class="sb-teams"><span class="fl">${fl(f[2])}</span> ${esc(f[2])} ${sc?`<span class="sb-score">${sc[0]}–${sc[1]}</span>`:"<em>v</em>"} <span class="fl">${fl(f[3])}</span> ${esc(f[3])}</div>
-        <div class="sb-meta">Group ${f[1]} &middot; ${f[5]} &middot; kicked off ${timeLabel(f[4])} ${tzAbbr()}</div>
+        <div class="sb-kicker"><i class="live-dot"></i> Live now${lf&&lf.min?" &middot; "+esc(lf.min):""}${more>0?` &middot; +${more} more`:""}</div>
+        <div class="sb-teams"><span class="fl">${fl(f[2])}</span> ${esc(f[2])} ${lf&&lf.sc?`<span class="sb-score">${lf.sc[0]}–${lf.sc[1]}</span>`:"<em>v</em>"} <span class="fl">${fl(f[3])}</span> ${esc(f[3])}</div>
+        <div class="sb-meta">Group ${f[1]} &middot; ${f[5]} &middot; tap to view</div>
       </div>
-      <div class="sb-right"><button class="chip" data-fix="live">${more>0?`+${more} more live`:"All live"}</button></div>
     </div>`;
   }
   if(up.length){
     const f=up[0];
-    return `<div class="statusbar" data-jump="${dayKey(f[4])}" role="button" tabindex="0">
+    return `<div class="statusbar" data-jump="${dayKey(koUTC(f))}" role="button" tabindex="0">
       <div class="sb-info">
         <div class="sb-kicker">⏱ Next match &middot; tap to view</div>
         <div class="sb-teams"><span class="fl">${fl(f[2])}</span> ${esc(f[2])} <em>v</em> <span class="fl">${fl(f[3])}</span> ${esc(f[3])}</div>
-        <div class="sb-meta">Group ${f[1]} &middot; ${f[5]} &middot; ${dayLabel(f[4])} &middot; ${timeLabel(f[4])} ${tzAbbr()}</div>
+        <div class="sb-meta">Group ${f[1]} &middot; ${f[5]} &middot; ${dayLabel(koUTC(f))} &middot; ${timeLabel(koUTC(f))} ${tzAbbr()}</div>
       </div>
-      <div class="sb-right"><div class="sb-count" id="nextCountdown">${fmtCountdown(new Date(f[4]).getTime()-Date.now())}</div><div class="sb-countlbl">until kickoff</div></div>
+      <div class="sb-right"><div class="sb-count" id="nextCountdown">${fmtCountdown(new Date(koUTC(f)).getTime()-Date.now())}</div><div class="sb-countlbl">until kickoff</div></div>
     </div>`;
   }
-  return `<div class="statusbar"><div class="sb-info"><div class="sb-kicker">🏁 Schedule</div><div class="sb-teams">All group fixtures done</div><div class="sb-meta">Head to Knockouts for the live bracket</div></div></div>`;
+  return `<div class="statusbar"><div class="sb-info"><div class="sb-kicker">🏁 Schedule</div><div class="sb-teams">All group fixtures played</div><div class="sb-meta">See the Results tab &amp; the Knockouts bracket</div></div></div>`;
 }
-function renderFixtures(){
-  const todayN=todayMatches().length, liveN=liveMatches().length, upN=upcomingMatches().length, finN=phaseList("finished").length;
-  let list=FIX.filter(f=>groupFilter==="ALL"||f[1]===groupFilter);
-  if(fixFilter==="today")list=list.filter(f=>isToday(f[4]));
-  else if(fixFilter==="live")list=list.filter(isLive);
-  else if(fixFilter==="upcoming")list=list.filter(f=>matchPhase(f)==="upcoming");
-  else if(fixFilter==="finished")list=list.filter(f=>matchPhase(f)==="finished");
-  let html=fixturesStatus();
-  html+=`<div class="chips">
-    <button class="chip ${fixFilter==="all"?"on":""}" data-fix="all">All</button>
-    <button class="chip ${fixFilter==="today"?"on":""}" data-fix="today">Today${todayN?` <b>${todayN}</b>`:""}</button>
-    <button class="chip ${fixFilter==="live"?"on":""}" data-fix="live"><i class="live-dot sm"></i> Live${liveN?` <b>${liveN}</b>`:""}</button>
-    <button class="chip ${fixFilter==="upcoming"?"on":""}" data-fix="upcoming">Upcoming${upN?` <b>${upN}</b>`:""}</button>
-    <button class="chip ${fixFilter==="finished"?"on":""}" data-fix="finished">Finished${finN?` <b>${finN}</b>`:""}</button>
-  </div>`;
-  html+=`<div class="filters">
+function groupSelect(){
+  return `<div class="filters">
     <label for="gsel">Group</label>
     <select class="gsel" id="gsel">
       <option value="ALL"${groupFilter==="ALL"?" selected":""}>All groups</option>
       ${Object.keys(GROUPS).map(g=>`<option value="${g}"${groupFilter===g?" selected":""}>Group ${g} — ${GROUPS[g].map(t=>fl(t)).join(" ")}</option>`).join("")}
     </select>
+    <span class="feedstat" id="feedStat"></span>
   </div>`;
-  const days={};list.forEach(f=>{(days[dayKey(f[4])]=days[dayKey(f[4])]||[]).push(f);});
-  const keys=Object.keys(days);
-  if(!keys.length){
-    html+=`<div class="empty">⚽ Nothing matches this filter.<br><button class="chip on" data-fix="all">Show all fixtures</button></div>`;
-  }else{
-    keys.forEach(k=>{
-      const dl=days[k].sort((a,b)=>new Date(a[4])-new Date(b[4]));
-      html+=`<div class="day" id="day-${k}"><h3>${dayLabel(dl[0][4])}${isToday(dl[0][4])?'<span class="today">TODAY</span>':""}</h3>
-        ${dl.map(matchCard).join("")}</div>`;
-    });
-  }
-  view.innerHTML=html;
-  document.getElementById("gsel").addEventListener("change",e=>{groupFilter=e.target.value;renderFixtures();});
-  view.querySelectorAll(".chip[data-fix]").forEach(c=>c.addEventListener("click",()=>{fixFilter=c.dataset.fix;renderFixtures();}));
+}
+function updateFeedStat(){
+  const el=document.getElementById("feedStat");if(!el)return;
+  if(feedConnected){const m=Math.max(0,Math.round((Date.now()-feedAt)/60000));el.innerHTML=`<i class="dot ok"></i> Live feed &middot; ${m?m+"m ago":"just now"}`;}
+  else el.innerHTML=`<i class="dot off"></i> Feed offline — status estimated`;
+}
+function bindFixturesCommon(){
+  const gs=document.getElementById("gsel");if(gs)gs.addEventListener("change",e=>{groupFilter=e.target.value;render();});
+  updateFeedStat();
   const sb=view.querySelector(".statusbar[data-jump]");
-  if(sb){const go=()=>{const key=sb.dataset.jump;if(fixFilter!=="all"){fixFilter="all";renderFixtures();}requestAnimationFrame(()=>jumpToDay(key));};
-    sb.addEventListener("click",go);sb.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}});}
+  if(sb){const go=()=>jumpToDay(sb.dataset.jump);sb.addEventListener("click",go);sb.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}});}
+}
+function renderFixtures(){
+  const list=FIX.filter(f=>!hasResult(f)).filter(f=>groupFilter==="ALL"||f[1]===groupFilter);
+  let html=fixturesStatus()+groupSelect();
+  const days={};list.forEach(f=>{(days[dayKey(koUTC(f))]=days[dayKey(koUTC(f))]||[]).push(f);});
+  const keys=Object.keys(days).sort((a,b)=>new Date(koUTC(days[a][0]))-new Date(koUTC(days[b][0])));
+  if(!keys.length){html+=`<div class="empty">✅ Every game in this view has been played.<br>Check the <b>Results</b> tab for scores.</div>`;}
+  else keys.forEach(k=>{
+    const dl=days[k].sort((a,b)=>new Date(koUTC(a))-new Date(koUTC(b)));
+    html+=`<div class="day" id="day-${k}"><h3>${dayLabel(koUTC(dl[0]))}${isToday(koUTC(dl[0]))?'<span class="today">TODAY</span>':""}</h3>${dl.map(matchCard).join("")}</div>`;
+  });
+  view.innerHTML=html;bindFixturesCommon();
+}
+function renderResults(){
+  const list=FIX.filter(hasResult).filter(f=>groupFilter==="ALL"||f[1]===groupFilter);
+  let html=`<div class="results-head"><div class="rh-title">Results</div><div class="rh-sub">${list.length} played</div></div>`+groupSelect();
+  const days={};list.forEach(f=>{(days[dayKey(koUTC(f))]=days[dayKey(koUTC(f))]||[]).push(f);});
+  const keys=Object.keys(days).sort((a,b)=>new Date(koUTC(days[b][0]))-new Date(koUTC(days[a][0])));
+  if(!keys.length){html+=`<div class="empty">No results yet.<br>Scores land here automatically as games finish — or add them from <b>Fixtures</b>.</div>`;}
+  else keys.forEach(k=>{
+    const dl=days[k].sort((a,b)=>new Date(koUTC(b))-new Date(koUTC(a)));
+    html+=`<div class="day" id="day-${k}"><h3>${dayLabel(koUTC(dl[0]))}${isToday(koUTC(dl[0]))?'<span class="today">TODAY</span>':""}</h3>${dl.map(matchCard).join("")}</div>`;
+  });
+  view.innerHTML=html;bindFixturesCommon();
 }
 function jumpToDay(key){
   const el=document.getElementById("day-"+key);if(!el)return;
@@ -925,8 +964,8 @@ function jumpToDay(key){
 }
 function landOnToday(){
   const live=liveMatches(),up=upcomingMatches();
-  const key=live.length?dayKey(live[0][4]):up.length?dayKey(up[0][4]):null;
-  if(fixFilter!=="all"||!key){scrollToContent();return;}
+  const key=live.length?dayKey(koUTC(live[0])):up.length?dayKey(koUTC(up[0])):null;
+  if(!key){scrollToContent();return;}
   requestAnimationFrame(()=>jumpToDay(key));
 }
 function renderGroups(){
@@ -1214,6 +1253,7 @@ function renderProgress(){
 function render(){
   renderProgress();
   if(tab==="fixtures")renderFixtures();
+  else if(tab==="results")renderResults();
   else if(tab==="groups")renderGroups();
   else renderKO();
 }
@@ -1314,6 +1354,12 @@ function clearDownstream(no){
 
 /* ================= MODAL ================= */
 const MODALS={
+about:`<h4>ℹ️ About &amp; terms</h4>
+<p><b>The Bois World Cup</b> — an unofficial companion app for the FIFA World Cup 2026. Not affiliated with or endorsed by FIFA.</p>
+<p><b>Live &amp; results data</b> sync automatically from TheSportsDB's free feed. Free data can lag or occasionally miss in-play updates, so when the feed is unavailable, live status is estimated from kickoff times (you'll see "Feed offline" next to the group filter). Tap <b>↻ Sync</b> any time to refresh. Scores you enter yourself are saved on this device and override the feed.</p>
+<p><b>📺 UK:</b> all 104 matches are free-to-air across BBC and ITV. Where the broadcaster isn't confirmed it shows "BBC or ITV" — check BBC Sport / ITVX on the day. Highlights buttons open BBC iPlayer (UK only).</p>
+<p><b>📺 Australia:</b> SBS holds exclusive free-to-air rights — every match live on SBS / SBS VICELAND and free on SBS On Demand. Times shown in AEST (Brisbane, UTC+10); −30 min for Adelaide, −2 hrs for Perth.</p>
+<p><b>Knockouts:</b> once all 72 group games are in, the Round of 32 builds itself — the top two from each group plus the eight best third-placed teams, slotted per FIFA's allocation rules.</p>`,
 ko:`<h4>🏆 How the knockouts work</h4>
 <p><b>The format:</b> 32 teams go through — the top two from all 12 groups, plus the <b>eight best third-placed sides</b> across the tournament. Then it's straight knockout: Round of 32 → Round of 16 → quarters → semis → final on 19 July (20 July for the Brisbane crew).</p>
 <p><b><i>Italic names</i> = projected.</b> That's who'd fill each slot if the group tables froze right now. They reshuffle live as you enter results — expect chaos on matchday three.</p>
@@ -1338,6 +1384,7 @@ function closeModal(){
 }
 
 document.getElementById("syncBtn").addEventListener("click",()=>syncScores(false));
+(function(){const a=document.querySelector('.about-row [data-modal="about"]');if(a)a.addEventListener("click",()=>showModal(MODALS.about));})();
 
 /* ================= INIT ================= */
 (async()=>{
@@ -1345,7 +1392,8 @@ document.getElementById("syncBtn").addEventListener("click",()=>syncScores(false
   syncHeadH();requestAnimationFrame(syncHeadH);
   animateView();
   setInterval(tickCountdown,1000);
-  if(Date.now()-(state.lastSync||0)>2*3600*1000)syncScores(true);
+  await syncScores(true);
+  scheduleSync();
 })();
 </script>
 </body>
