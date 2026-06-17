@@ -771,42 +771,88 @@ async function fetchFeed(){
   evs=evs.filter(e=>{if(!e)return false;if(e.idLeague&&e.idLeague!=="4429")return false;const k=e.idEvent||((e.strHomeTeam||"")+(e.strAwayTeam||"")+(e.dateEvent||""));if(seen[k])return false;seen[k]=1;return true;});
   return {ok,evs};
 }
-async function syncScores(auto){
-  const btn=document.getElementById("syncBtn");if(btn)btn.classList.add("syncing");
-  if(!auto)toast("Checking the live feed…");
-  let res=null;try{res=await fetchFeed();}catch(e){res=null;}
-  if(btn)btn.classList.remove("syncing");
-  if(!res||!res.ok){feedConnected=false;feedLive={};updateFeedStat();if(!auto)toast("Feed unreachable right now — try again shortly");return null;}
-  feedConnected=true;feedAt=Date.now();
+/* ---------- openfootball: complete, key-free, CORS-friendly primary source ---------- */
+const OF_ALIAS={"Czech Republic":"Czechia","Bosnia & Herzegovina":"Bosnia & Herz.","Turkey":"Türkiye","Türkiye":"Türkiye"};
+function ofTeam(n){return OF_ALIAS[n]||n;}
+function ofPlaceholder(n){return /^[123][A-L]$/.test(n)||/^3[A-L/]+$/.test(n)||/^[WL]\d+$/.test(n);}
+function ofUTC(date,time){
+  if(!date)return null;
+  const parts=(time||"00:00 UTC+0").trim().split(/\s+/);
+  const hm=parts[0]||"00:00",tz=parts[1]||"UTC+0";
+  const[hh,mm]=hm.split(":").map(Number);
+  const om=/UTC([+-]\d+(?::\d+)?)/.exec(tz);
+  let off=0;if(om){const p=om[1].split(":");off=parseInt(p[0],10)+(p[1]?Math.sign(parseInt(p[0],10))*parseInt(p[1],10)/60:0);}
+  const[Y,Mo,D]=date.split("-").map(Number);
+  const ms=Date.UTC(Y,Mo-1,D,(hh||0)-off,(mm||0));
+  return isNaN(ms)?null:new Date(ms).toISOString();
+}
+async function fetchOpenFootball(){
+  const urls=[
+    "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json",
+    "https://cdn.jsdelivr.net/gh/openfootball/worldcup.json@master/2026/worldcup.json"
+  ];
+  for(const u of urls){try{const r=await fetch(u,{cache:"no-store"});if(r.ok){const j=await r.json();if(j&&Array.isArray(j.matches)&&j.matches.length)return j.matches;}}catch(e){}}
+  return null;
+}
+function applyOpenFootball(ms,auto){
   const now=Date.now();
-  const newLive={},overrides=Object.assign({},state.koTimes||{});
+  const overrides=Object.assign({},state.koTimes||{}),newLive={};
   let added=0,fixed=0,liveN=0;const pensNeeded=[];
-  res.evs.forEach(ev=>{
-    const h=normTeam(ev.strHomeTeam||""),a=normTeam(ev.strAwayTeam||"");
-    if(!h||!a)return;
-    const ts=feedUTC(ev);
-    let t=ts?new Date(ts).getTime():now;if(isNaN(t))t=now;
-    const m=findFixture(h,a,t);if(!m)return;
-    if(ts&&!m.ko)overrides[m.id]=ts;
-    const kind=statusKind(ev);
-    const hs=parseInt(ev.intHomeScore,10),as=parseInt(ev.intAwayScore,10);
-    const haveScore=!(isNaN(hs)||isNaN(as));
-    const sh=m.flip?as:hs, sa=m.flip?hs:as;
-    if(kind==="live"){
-      const mn=(ev.strProgress||ev.strStatus||"").toString().trim();
-      newLive[m.id]={sc:haveScore?[sh,sa]:null,min:/^\d+$/.test(mn)?mn+"'":mn};liveN++;
-    }else if((kind==="fin"||(kind==="unknown"&&t<now-100*60000))&&haveScore){
-      const c=applyResult(m.id,m.ko,sh,sa);if(c===1)added++;else if(c===2)fixed++;
-      if(m.ko&&sh===sa&&!state.pens[m.id])pensNeeded.push(h+" v "+a);
+  const KO=buildKO(),koByNum={};Object.values(KO).forEach(m=>{koByNum[m.no]=m;});
+  ms.forEach(m=>{
+    const utc=ofUTC(m.date,m.time);
+    const ft=m.score&&m.score.ft, ht=m.score&&m.score.ht;
+    if(m.group){
+      const h=ofTeam(m.team1),a=ofTeam(m.team2),grp=m.group.replace("Group ","").trim();
+      const fx=FIX.find(f=>f[1]===grp&&((f[2]===h&&f[3]===a)||(f[2]===a&&f[3]===h)));
+      if(!fx)return;
+      const id=fx[0],flip=fx[2]!==h;
+      if(utc)overrides[id]=utc;
+      if(ft){const sh=flip?ft[1]:ft[0],sa=flip?ft[0]:ft[1];const c=applyResult(id,false,sh,sa);if(c===1)added++;else if(c===2)fixed++;}
+      else if(ht&&utc&&new Date(utc).getTime()<now){newLive[id]={sc:[flip?ht[1]:ht[0],flip?ht[0]:ht[1]],min:"HT"};liveN++;}
+    }else if(m.num&&koByNum[m.num]){
+      const km=koByNum[m.num],id="k"+m.num;
+      if(ft){
+        let sh=ft[0],sa=ft[1];
+        if(km.home&&!ofPlaceholder(m.team1)&&km.home!==ofTeam(m.team1)){sh=ft[1];sa=ft[0];}
+        const c=applyResult(id,true,sh,sa);if(c===1)added++;else if(c===2)fixed++;
+        if(sh===sa&&!state.pens[id])pensNeeded.push((km.home||m.team1)+" v "+(km.away||m.team2));
+      }
     }
   });
-  feedLive=newLive;state.koTimes=overrides;state.lastSync=Date.now();saveState();
+  feedLive=newLive;state.koTimes=overrides;feedConnected=true;feedAt=Date.now();state.lastSync=Date.now();saveState();
   renderKeep();updateFeedStat();
   if(!auto){
-    if(added||fixed)toast("Synced ✅ "+added+" new"+(fixed?", "+fixed+" updated":"")+(liveN?` &middot; ${liveN} live 🔴`:""));
-    else if(liveN)toast(liveN+" match"+(liveN>1?"es":"")+" live now 🔴");
-    else toast("Up to date — no new results");
+    if(added||fixed)toast("Synced ✅ "+added+" new"+(fixed?", "+fixed+" updated":"")+(pensNeeded.length?" — set the pens winner for "+pensNeeded.join(", "):""));
+    else if(liveN)toast(liveN+" match"+(liveN>1?"es":"")+" in play 🔴");
+    else toast("Up to date — all results in sync ✅");
   }
+  return (added||fixed)>0;
+}
+async function syncScores(auto){
+  const btn=document.getElementById("syncBtn");if(btn)btn.classList.add("syncing");
+  if(!auto)toast("Syncing fixtures & results…");
+  let ofm=null;try{ofm=await fetchOpenFootball();}catch(e){ofm=null;}
+  if(ofm){if(btn)btn.classList.remove("syncing");return applyOpenFootball(ofm,auto);}
+  // fallback: TheSportsDB (best effort)
+  let res=null;try{res=await fetchFeed();}catch(e){res=null;}
+  if(btn)btn.classList.remove("syncing");
+  if(!res||!res.ok){feedConnected=false;feedLive={};updateFeedStat();if(!auto)toast("Couldn't reach the data feed — try again shortly");return null;}
+  feedConnected=true;feedAt=Date.now();
+  const now=Date.now();const newLive={},overrides=Object.assign({},state.koTimes||{});
+  let added=0,fixed=0,liveN=0;
+  res.evs.forEach(ev=>{
+    const h=normTeam(ev.strHomeTeam||""),a=normTeam(ev.strAwayTeam||"");if(!h||!a)return;
+    const ts=feedUTC(ev);let t=ts?new Date(ts).getTime():now;if(isNaN(t))t=now;
+    const m=findFixture(h,a,t);if(!m)return;
+    if(ts&&!m.ko)overrides[m.id]=ts;
+    const kind=statusKind(ev);const hs=parseInt(ev.intHomeScore,10),as=parseInt(ev.intAwayScore,10);
+    const haveScore=!(isNaN(hs)||isNaN(as));const sh=m.flip?as:hs,sa=m.flip?hs:as;
+    if(kind==="live"){const mn=(ev.strProgress||ev.strStatus||"").toString().trim();newLive[m.id]={sc:haveScore?[sh,sa]:null,min:/^\d+$/.test(mn)?mn+"'":mn};liveN++;}
+    else if((kind==="fin"||(kind==="unknown"&&t<now-100*60000))&&haveScore){const c=applyResult(m.id,m.ko,sh,sa);if(c===1)added++;else if(c===2)fixed++;}
+  });
+  feedLive=newLive;state.koTimes=overrides;state.lastSync=Date.now();saveState();renderKeep();updateFeedStat();
+  if(!auto)toast(added||fixed?("Synced ✅ "+added+" new"+(fixed?", "+fixed+" updated":"")):"Up to date");
   return (added||fixed)>0;
 }
 function scheduleSync(){
@@ -931,8 +977,8 @@ function groupSelect(){
 }
 function updateFeedStat(){
   const el=document.getElementById("feedStat");if(!el)return;
-  if(feedConnected){const m=Math.max(0,Math.round((Date.now()-feedAt)/60000));el.innerHTML=`<i class="dot ok"></i> Live feed &middot; ${m?m+"m ago":"just now"}`;}
-  else el.innerHTML=`<i class="dot off"></i> Feed offline — status estimated`;
+  if(feedConnected){const m=Math.max(0,Math.round((Date.now()-feedAt)/60000));el.innerHTML=`<i class="dot ok"></i> Results synced &middot; ${m?m+"m ago":"just now"}`;}
+  else el.innerHTML=`<i class="dot off"></i> Offline — showing saved data`;
 }
 function bindFixturesCommon(){
   const gs=document.getElementById("gsel");if(gs)gs.addEventListener("change",e=>{groupFilter=e.target.value;render();});
@@ -1364,7 +1410,7 @@ function clearDownstream(no){
 const MODALS={
 about:`<h4>ℹ️ About &amp; terms</h4>
 <p><b>The Bois World Cup</b> — an unofficial companion app for the FIFA World Cup 2026. Not affiliated with or endorsed by FIFA.</p>
-<p><b>Live &amp; results data</b> sync automatically from TheSportsDB's free feed. Free data can lag or occasionally miss in-play updates, so when the feed is unavailable, live status is estimated from kickoff times (you'll see "Feed offline" next to the group filter). Tap <b>↻ Sync</b> any time to refresh. Scores you enter yourself are saved on this device and override the feed.</p>
+<p><b>Fixtures &amp; results</b> sync automatically from the open-source <b>openfootball</b> dataset (public domain, no sign-up) — it carries all 104 matches with kickoff times and final scores, and updates as games finish. Tap <b>↻ Sync</b> any time to refresh. A match shows as <b>LIVE</b> during its kickoff window; the running scoreline appears once the data provider posts it (free data isn't minute-by-minute). Scores you enter yourself are saved on this device and take priority.</p>
 <p><b>📺 UK:</b> all 104 matches are free-to-air across BBC and ITV. Where the broadcaster isn't confirmed it shows "BBC or ITV" — check BBC Sport / ITVX on the day. Highlights buttons open BBC iPlayer (UK only).</p>
 <p><b>📺 Australia:</b> SBS holds exclusive free-to-air rights — every match live on SBS / SBS VICELAND and free on SBS On Demand. Times shown in AEST (Brisbane, UTC+10); −30 min for Adelaide, −2 hrs for Perth.</p>
 <p><b>Knockouts:</b> once all 72 group games are in, the Round of 32 builds itself — the top two from each group plus the eight best third-placed teams, slotted per FIFA's allocation rules.</p>`,
