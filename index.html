@@ -434,9 +434,9 @@ E:["Germany","Curaçao","Ivory Coast","Ecuador"],
 F:["Netherlands","Japan","Sweden","Tunisia"],
 G:["Belgium","Egypt","Iran","New Zealand"],
 H:["Spain","Cape Verde","Saudi Arabia","Uruguay"],
-I:["France","Senegal","DR Congo","Norway"],
+I:["France","Senegal","Iraq","Norway"],
 J:["Argentina","Algeria","Austria","Jordan"],
-K:["Portugal","Iraq","Uzbekistan","Colombia"],
+K:["Portugal","DR Congo","Uzbekistan","Colombia"],
 L:["England","Croatia","Ghana","Panama"]};
 /* [id, group, home, away, UTC kickoff (BST-1h), venue, UK channel or null] */
 const FIX=[
@@ -755,13 +755,15 @@ function applyResult(id,ko,sh,sa){
   return 0;
 }
 async function fetchFeed(){
+  const iso=d=>d.toISOString().slice(0,10);
+  const today=new Date(),y=new Date(Date.now()-86400000),tm=new Date(Date.now()+86400000);
   const tries=[
-    "https://www.thesportsdb.com/api/v1/json/123/eventsseason.php?id=4429&s=2026",
-    "https://www.thesportsdb.com/api/v1/json/3/eventsseason.php?id=4429&s=2026",
-    "https://www.thesportsdb.com/api/v1/json/123/eventsseason.php?id=4429&s=2025-2026",
+    "https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d="+iso(today)+"&l=4429",
+    "https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d="+iso(y)+"&l=4429",
+    "https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d="+iso(tm)+"&l=4429",
     "https://www.thesportsdb.com/api/v1/json/123/eventsnextleague.php?id=4429",
     "https://www.thesportsdb.com/api/v1/json/123/eventspastleague.php?id=4429",
-    "https://www.thesportsdb.com/api/v1/json/3/eventspastleague.php?id=4429"
+    "https://www.thesportsdb.com/api/v1/json/123/eventsseason.php?id=4429&s=2026"
   ];
   let evs=[],ok=false;
   for(const url of tries){
@@ -788,72 +790,63 @@ function ofUTC(date,time){
 }
 async function fetchOpenFootball(){
   const urls=[
-    "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json",
+    "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json?t="+Date.now(),
     "https://cdn.jsdelivr.net/gh/openfootball/worldcup.json@master/2026/worldcup.json"
   ];
   for(const u of urls){try{const r=await fetch(u,{cache:"no-store"});if(r.ok){const j=await r.json();if(j&&Array.isArray(j.matches)&&j.matches.length)return j.matches;}}catch(e){}}
   return null;
 }
-function applyOpenFootball(ms,auto){
-  const now=Date.now();
-  const overrides=Object.assign({},state.koTimes||{}),newLive={};
-  let added=0,fixed=0,liveN=0;const pensNeeded=[];
+function mergeOpenFootball(ms,acc){
   const KO=buildKO(),koByNum={};Object.values(KO).forEach(m=>{koByNum[m.no]=m;});
   ms.forEach(m=>{
-    const utc=ofUTC(m.date,m.time);
-    const ft=m.score&&m.score.ft, ht=m.score&&m.score.ht;
+    const utc=ofUTC(m.date,m.time),ft=m.score&&m.score.ft,ht=m.score&&m.score.ht;
     if(m.group){
       const h=ofTeam(m.team1),a=ofTeam(m.team2),grp=m.group.replace("Group ","").trim();
       const fx=FIX.find(f=>f[1]===grp&&((f[2]===h&&f[3]===a)||(f[2]===a&&f[3]===h)));
-      if(!fx)return;
-      const id=fx[0],flip=fx[2]!==h;
-      if(utc)overrides[id]=utc;
-      if(ft){const sh=flip?ft[1]:ft[0],sa=flip?ft[0]:ft[1];const c=applyResult(id,false,sh,sa);if(c===1)added++;else if(c===2)fixed++;}
-      else if(ht&&utc&&new Date(utc).getTime()<now){newLive[id]={sc:[flip?ht[1]:ht[0],flip?ht[0]:ht[1]],min:"HT"};liveN++;}
-    }else if(m.num&&koByNum[m.num]){
-      const km=koByNum[m.num],id="k"+m.num;
-      if(ft){
-        let sh=ft[0],sa=ft[1];
-        if(km.home&&!ofPlaceholder(m.team1)&&km.home!==ofTeam(m.team1)){sh=ft[1];sa=ft[0];}
-        const c=applyResult(id,true,sh,sa);if(c===1)added++;else if(c===2)fixed++;
-        if(sh===sa&&!state.pens[id])pensNeeded.push((km.home||m.team1)+" v "+(km.away||m.team2));
-      }
+      if(!fx)return;const id=fx[0],flip=fx[2]!==h;
+      if(utc)acc.overrides[id]=utc;
+      if(ft){const sh=flip?ft[1]:ft[0],sa=flip?ft[0]:ft[1];const c=applyResult(id,false,sh,sa);if(c===1)acc.added++;else if(c===2)acc.fixed++;}
+      else if(ht&&utc&&new Date(utc).getTime()<Date.now())acc.live[id]={sc:[flip?ht[1]:ht[0],flip?ht[0]:ht[1]],min:"HT"};
+    }else if(m.num&&koByNum[m.num]&&ft){
+      const km=koByNum[m.num],id="k"+m.num;let sh=ft[0],sa=ft[1];
+      if(km.home&&!ofPlaceholder(m.team1)&&km.home!==ofTeam(m.team1)){sh=ft[1];sa=ft[0];}
+      const c=applyResult(id,true,sh,sa);if(c===1)acc.added++;else if(c===2)acc.fixed++;
     }
   });
-  feedLive=newLive;state.koTimes=overrides;feedConnected=true;feedAt=Date.now();state.lastSync=Date.now();saveState();
-  renderKeep();updateFeedStat();
-  if(!auto){
-    if(added||fixed)toast("Synced ✅ "+added+" new"+(fixed?", "+fixed+" updated":"")+(pensNeeded.length?" — set the pens winner for "+pensNeeded.join(", "):""));
-    else if(liveN)toast(liveN+" match"+(liveN>1?"es":"")+" in play 🔴");
-    else toast("Up to date — all results in sync ✅");
-  }
-  return (added||fixed)>0;
 }
-async function syncScores(auto){
-  const btn=document.getElementById("syncBtn");if(btn)btn.classList.add("syncing");
-  if(!auto)toast("Syncing fixtures & results…");
-  let ofm=null;try{ofm=await fetchOpenFootball();}catch(e){ofm=null;}
-  if(ofm){if(btn)btn.classList.remove("syncing");return applyOpenFootball(ofm,auto);}
-  // fallback: TheSportsDB (best effort)
-  let res=null;try{res=await fetchFeed();}catch(e){res=null;}
-  if(btn)btn.classList.remove("syncing");
-  if(!res||!res.ok){feedConnected=false;feedLive={};updateFeedStat();if(!auto)toast("Couldn't reach the data feed — try again shortly");return null;}
-  feedConnected=true;feedAt=Date.now();
-  const now=Date.now();const newLive={},overrides=Object.assign({},state.koTimes||{});
-  let added=0,fixed=0,liveN=0;
-  res.evs.forEach(ev=>{
+function mergeSportsDB(evs,acc){
+  const now=Date.now();
+  evs.forEach(ev=>{
     const h=normTeam(ev.strHomeTeam||""),a=normTeam(ev.strAwayTeam||"");if(!h||!a)return;
     const ts=feedUTC(ev);let t=ts?new Date(ts).getTime():now;if(isNaN(t))t=now;
     const m=findFixture(h,a,t);if(!m)return;
-    if(ts&&!m.ko)overrides[m.id]=ts;
-    const kind=statusKind(ev);const hs=parseInt(ev.intHomeScore,10),as=parseInt(ev.intAwayScore,10);
-    const haveScore=!(isNaN(hs)||isNaN(as));const sh=m.flip?as:hs,sa=m.flip?hs:as;
-    if(kind==="live"){const mn=(ev.strProgress||ev.strStatus||"").toString().trim();newLive[m.id]={sc:haveScore?[sh,sa]:null,min:/^\d+$/.test(mn)?mn+"'":mn};liveN++;}
-    else if((kind==="fin"||(kind==="unknown"&&t<now-100*60000))&&haveScore){const c=applyResult(m.id,m.ko,sh,sa);if(c===1)added++;else if(c===2)fixed++;}
+    if(ts&&!m.ko)acc.overrides[m.id]=ts;
+    const kind=statusKind(ev),hs=parseInt(ev.intHomeScore,10),as=parseInt(ev.intAwayScore,10);
+    const haveScore=!(isNaN(hs)||isNaN(as)),sh=m.flip?as:hs,sa=m.flip?hs:as;
+    if(kind==="live"){const mn=(ev.strProgress||ev.strStatus||"").toString().trim();acc.live[m.id]={sc:haveScore?[sh,sa]:null,min:/^\d+$/.test(mn)?mn+"'":mn};}
+    else if((kind==="fin"||(kind==="unknown"&&t<now-100*60000))&&haveScore){const c=applyResult(m.id,m.ko,sh,sa);if(c===1)acc.added++;else if(c===2)acc.fixed++;}
   });
-  feedLive=newLive;state.koTimes=overrides;state.lastSync=Date.now();saveState();renderKeep();updateFeedStat();
-  if(!auto)toast(added||fixed?("Synced ✅ "+added+" new"+(fixed?", "+fixed+" updated":"")):"Up to date");
-  return (added||fixed)>0;
+}
+async function syncScores(auto){
+  const btn=document.getElementById("syncBtn");if(btn)btn.classList.add("syncing");
+  if(!auto)toast("Syncing fixtures, results & live…");
+  const acc={overrides:Object.assign({},state.koTimes||{}),live:{},added:0,fixed:0};
+  let connected=false;
+  let ofm=null;try{ofm=await fetchOpenFootball();}catch(e){}
+  if(ofm){connected=true;try{mergeOpenFootball(ofm,acc);}catch(e){}}
+  let res=null;try{res=await fetchFeed();}catch(e){}
+  if(res&&res.ok){connected=true;try{mergeSportsDB(res.evs,acc);}catch(e){}}
+  if(btn)btn.classList.remove("syncing");
+  if(!connected){feedConnected=false;updateFeedStat();if(!auto)toast("Couldn't reach the data sources — try again shortly");return null;}
+  feedConnected=true;feedAt=Date.now();feedLive=acc.live;state.koTimes=acc.overrides;state.lastSync=Date.now();saveState();
+  renderKeep();updateFeedStat();
+  if(!auto){
+    const liveN=liveMatches().length;
+    if(acc.added||acc.fixed)toast(`Synced ✅ ${acc.added} new${acc.fixed?", "+acc.fixed+" updated":""}${liveN?` · ${liveN} live 🔴`:""}`);
+    else if(liveN)toast(`${liveN} match${liveN>1?"es":""} live now 🔴`);
+    else toast("Up to date — all results in sync ✅");
+  }
+  return (acc.added||acc.fixed)>0;
 }
 function scheduleSync(){
   clearTimeout(syncTimer);
@@ -977,8 +970,10 @@ function groupSelect(){
 }
 function updateFeedStat(){
   const el=document.getElementById("feedStat");if(!el)return;
-  if(feedConnected){const m=Math.max(0,Math.round((Date.now()-feedAt)/60000));el.innerHTML=`<i class="dot ok"></i> Results synced &middot; ${m?m+"m ago":"just now"}`;}
-  else el.innerHTML=`<i class="dot off"></i> Offline — showing saved data`;
+  const played=Object.keys(state.results).length, live=liveMatches().length;
+  if(feedConnected){const m=Math.max(0,Math.round((Date.now()-feedAt)/60000));
+    el.innerHTML=`<i class="dot ok"></i> ${played}/104 results${live?` &middot; <b style="color:#ff8273">${live} live</b>`:""} &middot; ${m?m+"m ago":"just now"}`;}
+  else el.innerHTML=`<i class="dot off"></i> Offline — ${played}/104 saved`;
 }
 function bindFixturesCommon(){
   const gs=document.getElementById("gsel");if(gs)gs.addEventListener("change",e=>{groupFilter=e.target.value;render();});
