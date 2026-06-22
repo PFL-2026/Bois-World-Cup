@@ -1,4 +1,4 @@
-# The Bois World Cup ⚽🏆
+# World Cup 2026 ⚽🏆
 
 World Cup 2026 fixtures, group tables, auto-building knockout bracket and live odds —
 with UK (BST) / Brisbane (AEST) time toggle and TV channels for both markets.
