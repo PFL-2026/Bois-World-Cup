@@ -386,6 +386,15 @@ body{-webkit-tap-highlight-color:transparent}
 .scorer .ptm{font-size:12px;color:var(--muted)}
 .scorer .gz{font-family:'Anton',sans-serif;font-size:23px;color:var(--gold);flex:none;display:flex;align-items:baseline;gap:4px}
 .scorer .gz i{font-style:normal;font-size:10px;color:var(--muted);font-family:'Space Grotesk',sans-serif;letter-spacing:.03em}
+.thirds-note{font-size:13px;color:var(--muted);line-height:1.55;margin:0 2px 14px}
+.thirds-note.dim{margin-top:12px;font-size:12px;opacity:.85}
+.thirds td.pos{font-family:'Anton',sans-serif;font-size:15px;color:var(--muted);width:30px}
+.thirds tr.qin td.pos{color:var(--green-q)}
+.thirds tr.qin td:first-child{box-shadow:inset 4px 0 0 var(--green-q)}
+.thirds tr.qout{opacity:.5}
+.thirds tr.qout td:first-child{box-shadow:inset 4px 0 0 rgba(243,239,227,.2)}
+.thirds tr.cut td{border-bottom:2px solid var(--gold)}
+.thirds td.grp-cell{font-weight:700;color:var(--gold)}
 @media (max-width:560px){nav.tabs button{font-size:13px;padding:11px 3px;letter-spacing:.02em}}
 @media (max-width:380px){nav.tabs button{font-size:11.5px;padding:11px 2px}}
 </style>
@@ -417,6 +426,7 @@ body{-webkit-tap-highlight-color:transparent}
       <button data-tab="results">Results</button>
       <button data-tab="scorers">Scorers</button>
       <button data-tab="groups">Groups</button>
+      <button data-tab="thirds">3rd Place</button>
       <button data-tab="knockout">Knockouts</button>
     </nav>
   </div>
@@ -610,31 +620,40 @@ function isToday(utcStr){
 }
 
 /* ================= STANDINGS ================= */
-function tableFor(g){
+function RES(){
+  if(!feedLive||!Object.keys(feedLive).length)return state.results;
+  const v=Object.assign({},state.results);
+  for(const id in feedLive){const x=feedLive[id];if(x&&Array.isArray(x.sc)&&v[id]===undefined)v[id]=x.sc;}
+  return v;
+}
+function tableFor(g,R){
+  R=R||RES();
   const rows={};GROUPS[g].forEach(t=>rows[t]={team:t,p:0,w:0,d:0,l:0,gf:0,ga:0,pts:0});
   FIX.filter(f=>f[1]===g).forEach(f=>{
-    const r=state.results[f[0]];if(!r)return;
+    const r=R[f[0]];if(!r)return;
     const[h,a]=r,H=rows[f[2]],A=rows[f[3]];
+    if(!H||!A)return;
     H.p++;A.p++;H.gf+=h;H.ga+=a;A.gf+=a;A.ga+=h;
     if(h>a){H.w++;A.l++;H.pts+=3;}else if(h<a){A.w++;H.l++;A.pts+=3;}else{H.d++;A.d++;H.pts++;A.pts++;}
   });
   return Object.values(rows).sort((x,y)=>y.pts-x.pts||(y.gf-y.ga)-(x.gf-x.ga)||y.gf-x.gf||x.team.localeCompare(y.team));
 }
-function groupComplete(g){return FIX.filter(f=>f[1]===g).every(f=>state.results[f[0]]);}
-function groupHasResults(g){return FIX.some(f=>f[1]===g&&state.results[f[0]]);}
+function groupComplete(g,R){R=R||RES();return FIX.filter(f=>f[1]===g).every(f=>R[f[0]]);}
+function groupHasResults(g){const R=RES();return FIX.some(f=>f[1]===g&&R[f[0]]);}
 function allGroupsStarted(){return Object.keys(GROUPS).every(groupHasResults);}
-function allGroupsDone(){return Object.keys(GROUPS).every(groupComplete);}
+function allGroupsDone(){return Object.keys(GROUPS).every(g=>groupComplete(g,state.results));}
 /* mathematical certainty on points alone (conservative: equal points could
-   still swing on goal difference, so strict inequalities only) */
+   still swing on goal difference, so strict inequalities only).
+   Locks use FINAL results only — live scores never produce a 🔒. */
 function ptsMax(r){return r.pts+3*(3-r.p);}
 function certainFirst(g){
-  if(groupComplete(g))return true;
-  const rows=tableFor(g);
+  if(groupComplete(g,state.results))return true;
+  const rows=tableFor(g,state.results);
   return rows.slice(1).every(r=>ptsMax(r)<rows[0].pts);
 }
 function certainSecond(g){
-  if(groupComplete(g))return true;
-  const rows=tableFor(g);
+  if(groupComplete(g,state.results))return true;
+  const rows=tableFor(g,state.results);
   const r1=rows[1];
   const cantBeCaught=rows.slice(2).every(r=>ptsMax(r)<r1.pts);
   const cantBeFirst=rows[0].pts>ptsMax(r1);
@@ -679,7 +698,7 @@ function slotInfo(spec,thirdMap,no){
   return null;
 }
 function koWinner(no){
-  const r=state.results["k"+no];if(!r)return null;
+  const r=RES()["k"+no];if(!r)return null;
   if(r[0]>r[1])return "H";if(r[1]>r[0])return "A";
   return state.pens["k"+no]||null; // "H"/"A"
 }
@@ -1066,6 +1085,24 @@ function renderScorers(){
   html+=`</div>`;
   view.innerHTML=html;updateFeedStat();
 }
+function renderThirds(){
+  const th=Object.keys(GROUPS).map(g=>({g,...tableFor(g)[2]}));
+  th.sort((x,y)=>y.pts-x.pts||(y.gf-y.ga)-(x.gf-x.ga)||y.gf-x.gf||x.team.localeCompare(y.team));
+  let html=`<div class="results-head"><div class="rh-title">3rd-Place Race</div><div class="rh-sub feedstat" id="feedStat"></div></div>`;
+  html+=`<p class="thirds-note">Each group's 3rd-placed team is ranked together — the <b>top 8 of 12</b> advance to the Round of 32 (by points, then goal difference, then goals scored).</p>`;
+  html+=`<div class="gtable thirds"><table>
+    <tr><th>#</th><th>Team</th><th>Grp</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr>
+    ${th.map((r,i)=>`<tr class="${i<8?"qin":"qout"}${i===7?" cut":""}">
+      <td class="pos">${i+1}</td>
+      <td class="t"><span class="fl">${fl(r.team)}</span>${esc(r.team)}</td>
+      <td class="grp-cell">${r.g}</td>
+      <td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf-r.ga>0?"+":""}${r.gf-r.ga}</td><td class="pts">${r.pts}</td>
+    </tr>`).join("")}
+  </table></div>`;
+  html+=`<div class="legend"><span><i style="background:var(--green-q)"></i>1st–8th — through to Round of 32</span><span><i style="background:rgba(243,239,227,.22)"></i>9th–12th — eliminated</span></div>`;
+  if(!allGroupsDone())html+=`<p class="thirds-note dim">Positions update live and aren't final until all 72 group games are played.</p>`;
+  view.innerHTML=html;updateFeedStat();
+}
 function renderGroups(){
   let html=`<div class="filters">
     <label for="gselGroups">Show</label>
@@ -1232,7 +1269,7 @@ function drawBracket(canvas){
   function box(no){
     const m=M[no];if(!m)return;
     const x=cx[colOf[no]],y=center[no]-BH/2,rt=side[no]==="R";
-    const r=state.results["k"+no];
+    const r=RES()["k"+no];
     const w=koWinner(no);
     const onRoute=route.boxes.has(no);
     const fin=no===104;
@@ -1354,6 +1391,7 @@ function render(){
   else if(tab==="results")renderResults();
   else if(tab==="scorers")renderScorers();
   else if(tab==="groups")renderGroups();
+  else if(tab==="thirds")renderThirds();
   else renderKO();
 }
 /* re-render without losing the reader's place (used by background sync) */
