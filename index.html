@@ -99,7 +99,7 @@ select.gsel:focus{outline:none;border-color:var(--gold)}
 }
 .info-btn:hover{background:var(--gold);color:#1d1505}
 .modal-bg{
-  position:fixed;inset:0;background:rgba(4,16,11,.78);z-index:90;
+  position:fixed;inset:0;background:rgba(4,16,11,.78);z-index:200;
   display:flex;align-items:center;justify-content:center;padding:18px;
 }
 .modal{
@@ -429,6 +429,8 @@ body{-webkit-tap-highlight-color:transparent}
 .tm-res.loss{background:rgba(224,73,59,.2);color:#ff8273}
 .tm-res.draw{background:rgba(243,239,227,.14);color:var(--muted)}
 .tm-res.live{background:#ff5240;color:#fff}
+.tm-hl{flex:none;width:28px;height:28px;border-radius:7px;border:1px solid var(--gold);background:rgba(231,189,87,.12);color:var(--gold);font-size:11px;cursor:pointer;padding:0;line-height:1}
+.tm-hl:hover{background:var(--gold);color:#22190a}
 .tm-row.win{border-color:rgba(73,212,157,.32)}
 .tm-row.loss{border-color:rgba(224,73,59,.28)}
 .tm-row.live{border-color:rgba(255,82,64,.5)}
@@ -448,15 +450,34 @@ body{-webkit-tap-highlight-color:transparent}
 .tr-empty{font-size:13px;color:var(--muted);background:rgba(243,239,227,.04);border:1px dashed var(--soft);border-radius:10px;padding:14px}
 /* travel map */
 .tv-note{font-size:12px;color:var(--muted);margin-bottom:10px}
-.namap-wrap{background:linear-gradient(180deg,#061b14,#08241a);border:1px solid var(--soft);border-radius:14px;padding:8px;overflow:hidden}
+.namap-wrap{position:relative;background:linear-gradient(180deg,#061b14,#08241a);border:1px solid var(--soft);border-radius:14px;padding:8px;overflow:hidden}
 .namap{display:block;width:100%;height:auto}
 .na-land{fill:#0e3a2b;stroke:#17543e;stroke-width:1}
 .na-dot{fill:rgba(243,239,227,.22)}
-.na-route{stroke:var(--gold);stroke-width:3.4;stroke-dasharray:2 9;stroke-linecap:round;opacity:.9}
-.na-pill rect{fill:rgba(7,32,24,.92);stroke:var(--gold-2);stroke-width:1.2}
-.na-pill text{fill:var(--gold);font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:600;text-anchor:middle}
-.na-stop circle{fill:var(--gold);stroke:#072018;stroke-width:2.5}
+.na-route{stroke:var(--gold);stroke-width:3.4;stroke-dasharray:2 9;stroke-linecap:round;opacity:.9;transition:opacity .2s}
+.na-stop circle{fill:var(--gold);stroke:#072018;stroke-width:2.5;transition:opacity .2s}
 .na-stop text{fill:var(--pitch);font-family:'Anton',sans-serif;font-size:16px;text-anchor:middle}
+.namap.has-sel .na-route{opacity:.12}
+.namap.has-sel .na-stop{opacity:.32}
+.namap.has-sel .na-stop.sel{opacity:1}
+.na-stop.sel circle{stroke:#fff}
+.na-ring{fill:none;stroke:var(--gold);stroke-width:3.5;opacity:.95}
+@keyframes naPulse{0%{r:18px;opacity:.95}70%{r:30px;opacity:0}100%{r:18px;opacity:0}}
+.na-ring{animation:naPulse 1.6s ease-out infinite}
+.namap-info{position:absolute;top:12px;left:12px;right:12px;z-index:3;background:rgba(7,32,24,.94);border:1px solid var(--gold-2);border-radius:12px;padding:11px 13px;backdrop-filter:blur(4px);box-shadow:0 8px 26px rgba(0,0,0,.4)}
+.namap-info .ni-x{position:absolute;top:7px;right:9px;background:none;border:0;color:var(--muted);font-size:15px;cursor:pointer;padding:2px 5px;line-height:1}
+.namap-info .ni-x:hover{color:var(--ink)}
+.ni-round{font-family:'Anton',sans-serif;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);padding-right:18px}
+.ni-opp{font-weight:700;font-size:16px;color:var(--ink);margin:1px 0 5px}
+.ni-line{font-size:12.5px;color:var(--muted);line-height:1.5}
+.tr-hint{font-size:12px;color:var(--muted);margin:0 2px 9px;display:flex;align-items:center;gap:5px}
+.tr-leg{cursor:pointer;transition:border-color .15s,background .15s;-webkit-tap-highlight-color:transparent}
+.tr-leg:hover{border-color:rgba(231,189,87,.4)}
+.tr-leg .tr-pin{align-self:center;opacity:0;font-size:14px;transition:opacity .15s}
+.tr-leg:hover .tr-pin{opacity:.5}
+.tr-leg.sel{border-color:var(--gold);background:linear-gradient(180deg,rgba(231,189,87,.16),rgba(231,189,87,.08))}
+.tr-leg.sel .tr-pin{opacity:1}
+.tr-leg.sel .tr-rd{background:#fff;color:var(--pitch)}
 .tv-legs{display:flex;flex-direction:column;gap:4px;margin-top:12px}
 .tv-leg{display:flex;align-items:center;gap:10px;font-size:13px;padding:7px 10px;background:rgba(243,239,227,.04);border-radius:8px}
 .tv-n{flex:0 0 40px;display:flex;align-items:center;gap:2px;justify-content:center;font-family:'Space Grotesk',sans-serif;font-weight:600;color:var(--pitch);background:var(--gold);border-radius:6px;padding:2px 0;font-size:12px}
@@ -468,6 +489,17 @@ body{-webkit-tap-highlight-color:transparent}
 .tv-total{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:11px 14px;background:rgba(231,189,87,.12);border:1px solid rgba(231,189,87,.3);border-radius:10px}
 .tv-total span{font-size:13px;color:var(--ink)}
 .tv-total strong{font-family:'Anton',sans-serif;font-size:20px;color:var(--gold);letter-spacing:.02em}
+/* travel ranking modal */
+.travel-rank{width:100%;border-collapse:collapse;font-size:14px}
+.travel-rank th{text-align:left;font-family:'Anton',sans-serif;font-weight:400;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--soft)}
+.travel-rank td{padding:8px;border-bottom:1px solid var(--soft)}
+.travel-rank td.rk{font-family:'Anton',sans-serif;color:var(--muted);width:30px}
+.travel-rank tr:nth-child(-n+3) td.rk{color:var(--gold)}
+.travel-rank td.tm{font-weight:600}
+.travel-rank td.mi{text-align:right;font-family:'Space Grotesk',sans-serif;font-weight:600;color:var(--gold);white-space:nowrap}
+.travel-rank td.rd{text-align:right;color:var(--muted);font-size:12px;white-space:nowrap}
+.travel-rank tr.me td{background:rgba(231,189,87,.1)}
+.tr-rank-note{font-size:12px;color:var(--muted);margin:2px 0 12px;line-height:1.5}
 
 /* youtube highlights modal */
 .modal.wide{max-width:680px;width:calc(100vw - 28px)}
@@ -647,7 +679,7 @@ const KO_LATER=[
 const KO_UK_CHAN={104:"BBC One + ITV1"};
 
 /* ================= STATE & STORAGE ================= */
-let state={tz:"UK",results:{g1:[2,0]},pens:{},lastSync:0};
+let state={tz:"UK",results:{g1:[2,0]},pens:{},videos:{},lastSync:0};
 /* Persistence: Claude's storage API when running as a published artifact;
    guarded localStorage fallback when the HTML file is opened standalone. */
 function hasClaudeStorage(){return typeof window!=="undefined"&&!!window.storage;}
@@ -725,6 +757,7 @@ function groupComplete(g,R){R=R||RES();return FIX.filter(f=>f[1]===g).every(f=>R
 function groupHasResults(g){const R=RES();return FIX.some(f=>f[1]===g&&R[f[0]]);}
 function allGroupsStarted(){return Object.keys(GROUPS).every(groupHasResults);}
 function allGroupsDone(){return Object.keys(GROUPS).every(g=>groupComplete(g,state.results));}
+function koStarted(){return allGroupsDone()||Object.keys(state.results).some(k=>k.startsWith("k"));}
 /* mathematical certainty on points alone (conservative: equal points could
    still swing on goal difference, so strict inequalities only).
    Locks use FINAL results only — live scores never produce a 🔒. */
@@ -949,6 +982,7 @@ function mergeSportsDB(evs,acc){
     const ts=feedUTC(ev);let t=ts?new Date(ts).getTime():now;if(isNaN(t))t=now;
     const m=findFixture(h,a,t);if(!m)return;
     if(ts&&!m.ko)acc.overrides[m.id]=ts;
+    if(ev.strVideo&&ytId(ev.strVideo))acc.videos[m.id]=ev.strVideo;
     const kind=statusKind(ev),hs=parseInt(ev.intHomeScore,10),as=parseInt(ev.intAwayScore,10);
     const haveScore=!(isNaN(hs)||isNaN(as)),sh=m.flip?as:hs,sa=m.flip?hs:as;
     if(kind==="live"){const mn=(ev.strProgress||ev.strStatus||"").toString().trim();acc.live[m.id]={sc:haveScore?[sh,sa]:null,min:/^\d+$/.test(mn)?mn+"'":mn};}
@@ -958,7 +992,7 @@ function mergeSportsDB(evs,acc){
 async function syncScores(auto){
   const btn=document.getElementById("syncBtn");if(btn)btn.classList.add("syncing");
   if(!auto)toast("Syncing fixtures, results & live…");
-  const acc={overrides:Object.assign({},state.koTimes||{}),live:{},added:0,fixed:0};
+  const acc={overrides:Object.assign({},state.koTimes||{}),live:{},videos:Object.assign({},state.videos||{}),added:0,fixed:0};
   let connected=false;
   let ofm=null;try{ofm=await fetchOpenFootball();}catch(e){}
   if(ofm){connected=true;try{mergeOpenFootball(ofm,acc);}catch(e){}try{state.scorers=computeScorers(ofm);}catch(e){}}
@@ -966,7 +1000,7 @@ async function syncScores(auto){
   if(res&&res.ok){connected=true;try{mergeSportsDB(res.evs,acc);}catch(e){}}
   if(btn)btn.classList.remove("syncing");
   if(!connected){feedConnected=false;updateFeedStat();if(!auto)toast("Couldn't reach the data sources — try again shortly");return null;}
-  feedConnected=true;feedAt=Date.now();feedLive=acc.live;state.koTimes=acc.overrides;state.lastSync=Date.now();saveState();
+  feedConnected=true;feedAt=Date.now();feedLive=acc.live;state.koTimes=acc.overrides;state.videos=acc.videos;state.lastSync=Date.now();saveState();
   renderKeep();updateFeedStat();checkAlerts();
   if(!auto){
     const liveN=liveMatches().length;
@@ -1007,18 +1041,26 @@ function scoreCell(id,home,away,utc){
   </div>`;
 }
 const editing=new Set();
-function highlightsLink(home,away){
+function ytId(u){if(!u)return"";u=String(u);const m=u.match(/(?:v=|\/embed\/|youtu\.be\/|\/v\/|\/shorts\/)([\w-]{11})/);return m?m[1]:"";}
+function highlightsLink(home,away,id){
   if(!home||!away)return "";
-  return `<button class="btn replay" data-hl="${encodeURIComponent(home)}|${encodeURIComponent(away)}" title="Watch highlights in-app">▶ Highlights</button>`;
+  const has=id&&state.videos&&state.videos[id]?"1":"";
+  return `<button class="btn replay" data-hl="${encodeURIComponent(home)}|${encodeURIComponent(away)}|${encodeURIComponent(id||"")}" title="Watch highlights in-app">▶ Highlights${has?" ✓":""}</button>`;
 }
-function openHighlights(home,away){
+function openHighlights(home,away,id){
   const q=encodeURIComponent(home+" v "+away+" World Cup 2026 highlights");
-  const embed=`https://www.youtube-nocookie.com/embed?listType=search&list=${q}&rel=0&modestbranding=1`;
+  const vid=id&&state.videos?ytId(state.videos[id]):"";
+  const embed=vid
+    ? `https://www.youtube-nocookie.com/embed/${vid}?rel=0&modestbranding=1`
+    : `https://www.youtube-nocookie.com/embed?listType=search&list=${q}&rel=0&modestbranding=1`;
   const ytSearch=`https://www.youtube.com/results?search_query=${q}`;
   const bbc=`https://www.bbc.co.uk/iplayer/search?q=${encodeURIComponent(home+" v "+away)}`;
+  const note=vid
+    ? "Official highlights for this fixture, embedded to play right here."
+    : "Loads the top YouTube result for this fixture's highlights. If nothing plays (or it's the wrong clip), use a link below.";
   const html=`<h4>▶ ${esc(home)} v ${esc(away)}</h4>
     <div class="yt-wrap"><iframe src="${embed}" title="Match highlights" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
-    <p class="yt-note">Loads the top YouTube result for this fixture's highlights. If nothing plays (or it's the wrong clip), use a link below.</p>
+    <p class="yt-note">${note}</p>
     <div class="yt-links">
       <a class="btn replay" href="${ytSearch}" target="_blank" rel="noopener">Open on YouTube ↗</a>
       <a class="btn ghost" href="${bbc}" target="_blank" rel="noopener">BBC iPlayer · UK ↗</a>
@@ -1069,7 +1111,7 @@ function matchCard(f){
     </div>
     <div class="mbot">
       <div class="tv">${chanHTML(ukChan)}</div>
-      ${done?`<div class="actions">${highlightsLink(home,away)}<button class="btn ghost" data-edit="${id}">Edit</button></div>`
+      ${done?`<div class="actions">${highlightsLink(home,away,id)}<button class="btn ghost" data-edit="${id}">Edit</button></div>`
             :`<button class="btn" data-save="${id}">${live?"Enter final score":"Save result"}</button>`}
     </div>
   </div>`;
@@ -1252,7 +1294,7 @@ function koCard(m){
       <button class="btn ${state.pens[id]==="A"?"sel":""}" data-pen="${id}|A">${esc(m.away)}</button></div>`:""}
     <div class="mbot">
       <div class="tv">${chanHTML(null,m.no)}</div>
-      ${ready?(done?`<div class="actions">${highlightsLink(m.home,m.away)}<button class="btn ghost" data-edit="${id}">Edit</button></div>`:`<button class="btn" data-save="${id}" data-ko="1">Save result</button>`):""}
+      ${ready?(done?`<div class="actions">${highlightsLink(m.home,m.away,id)}<button class="btn ghost" data-edit="${id}">Edit</button></div>`:`<button class="btn" data-save="${id}" data-ko="1">Save result</button>`):""}
     </div>
   </div>`;
 }
@@ -1260,9 +1302,9 @@ function renderKO(){
   const got=Object.keys(state.results).filter(k=>k.startsWith("g")).length;
   let html="";
   if(!allGroupsDone()){
-    html+=`<div class="banner-row"><span>🔮 <b>${got}/72</b> results in &middot; <i style="color:var(--muted)">italics = projected</i>, <span class="lock-tag">🔒 = locked in</span></span><button class="info-btn" data-modal="ko">ℹ️ How this works</button></div>`;
+    html+=`<div class="banner-row"><span>🔮 <b>${got}/72</b> results in &middot; <i style="color:var(--muted)">italics = projected</i>, <span class="lock-tag">🔒 = locked in</span></span><button class="info-btn" data-travel="1">✈️ Travel ranking</button> <button class="info-btn" data-modal="ko">ℹ️ How this works</button></div>`;
   }else{
-    html+=`<div class="banner-row"><span>🎉 Group stage done — bracket is <b>live</b>. Final: <b>${state.tz==="UK"?"19 July":"20 July (AEST)"}</b>, MetLife Stadium.</span><button class="info-btn" data-modal="ko">ℹ️ How this works</button></div>`;
+    html+=`<div class="banner-row"><span>🎉 Group stage done — bracket is <b>live</b>. Final: <b>${state.tz==="UK"?"19 July":"20 July (AEST)"}</b>, MetLife Stadium.</span><button class="info-btn" data-travel="1">✈️ Travel ranking</button> <button class="info-btn" data-modal="ko">ℹ️ How this works</button></div>`;
   }
   html+=`<div class="kotabs"><button data-kov="bracket" class="${koView==="bracket"?"on":""}">🗺️ Bracket</button><button data-kov="list" class="${koView==="list"?"on":""}">📋 List & scores</button></div>`;
   if(koView==="bracket"){
@@ -1481,14 +1523,23 @@ function renderProgress(){
   const got=Object.keys(state.results).filter(k=>k.startsWith("g")).length;
   document.getElementById("progress").textContent=`${got}/72 group results in`;
 }
+function updateTabs(){
+  const t3=document.querySelector('nav.tabs button[data-tab="thirds"]');
+  if(!t3)return;
+  const hide=koStarted();
+  t3.style.display=hide?"none":"";
+  if(hide&&tab==="thirds"){tab="knockout";document.querySelectorAll("nav.tabs button").forEach(x=>x.classList.toggle("on",x.dataset.tab==="knockout"));}
+}
 function render(){
   renderProgress();
+  updateTabs();
   if(tab==="fixtures")renderFixtures();
   else if(tab==="results")renderResults();
   else if(tab==="scorers")renderScorers();
   else if(tab==="groups")renderGroups();
   else if(tab==="thirds")renderThirds();
   else renderKO();
+  refreshTeamOverlay();
 }
 /* re-render without losing the reader's place (used by background sync) */
 function renderKeep(){
@@ -1543,12 +1594,14 @@ view.addEventListener("click",e=>{
   const tgo=e.target.closest("[data-team-go]");
   if(tgo){openTeam(tgo.dataset.teamGo);return;}
   const hl=e.target.closest("[data-hl]");
-  if(hl){const p=hl.dataset.hl.split("|").map(decodeURIComponent);openHighlights(p[0],p[1]);return;}
+  if(hl){const p=hl.dataset.hl.split("|").map(decodeURIComponent);openHighlights(p[0],p[1],p[2]||"");return;}
   const save=e.target.closest("[data-save]");
   const edit=e.target.closest("[data-edit]");
   const pen=e.target.closest("[data-pen]");
   const modal=e.target.closest("[data-modal]");
   if(modal){showModal(MODALS[modal.dataset.modal]);return;}
+  const trav=e.target.closest("[data-travel]");
+  if(trav){openTravelModal();return;}
   if(pen){
     const[id,side]=pen.dataset.pen.split("|");
     state.pens[id]=side;saveState();render();
@@ -1634,6 +1687,7 @@ function oppHTML(leg){
   return `<span class="tr-tbc">${esc(l)}</span>`;
 }
 function venLabel(v){const g=VENUE_GEO[v];return g?g.city:v;}
+function oppText(l){if(l.oppTeam)return l.oppTeam;const mm=/^(Winner|Loser) M(\d+)$/.exec(l.oppLbl||"");return mm?mm[1]+" of Match "+mm[2]:(l.oppLbl||"TBC");}
 /* combined team knockout section: timeline + travel map */
 function teamKnockoutSection(team){
   const legs=teamRouteDetailed(team);
@@ -1643,15 +1697,17 @@ function teamKnockoutSection(team){
       : "Your projected route and travel map appear here once the group stage gets going.";
     return `<div class="tm-sec"><h3>Projected knockout route</h3><div class="tr-empty">${msg}</div></div>`;
   }
-  // ---- timeline ----
+  // ---- timeline ---- (each row is tappable to pinpoint its venue on the map)
   const rows=legs.map(l=>{
     const rs=ROUND_SHORT[l.round]||l.round;
-    return `<div class="tr-leg">
+    const city=venLabel(l.venue);const g=VENUE_GEO[l.venue]||{};
+    return `<div class="tr-leg" data-venue="${esc(l.venue)}" data-rfull="${esc(l.round)}" data-city="${esc(city)}" data-stadium="${esc(g.st||"")}" data-date="${esc(shortDay(l.utc))}" data-time="${esc(timeLabel(l.utc)+" "+tzAbbr())}" data-opp="${esc(oppText(l))}" role="button" tabindex="0" aria-pressed="false">
       <span class="tr-rd">${rs}</span>
       <div class="tr-mid">
         <div class="tr-opp">vs ${oppHTML(l)}</div>
-        <div class="tr-meta">${shortDay(l.utc)} · ${timeLabel(l.utc)} ${tzAbbr()} · ${esc(venLabel(l.venue))}</div>
+        <div class="tr-meta">${shortDay(l.utc)} · ${timeLabel(l.utc)} ${tzAbbr()} · ${esc(city)}</div>
       </div>
+      <span class="tr-pin" aria-hidden="true">📍</span>
     </div>`;
   }).join("");
   // ---- travel legs (consecutive venues) ----
@@ -1664,26 +1720,81 @@ function teamKnockoutSection(team){
   }
   // ---- map svg ----
   const land=Object.values(NA_PATHS).map(p=>`<path d="${p}" class="na-land"/>`).join("");
-  // faint dots for every host city
   let faint="";Object.keys(VENUE_GEO).forEach(v=>{const g=VENUE_GEO[v];faint+=`<circle cx="${g.x}" cy="${g.y}" r="5" class="na-dot"/>`;});
-  // route polyline + arrows
   let lines="";segs.forEach(s=>{const A=VENUE_GEO[s.a],B=VENUE_GEO[s.b];if(!A||!B)return;
     if(A.x===B.x&&A.y===B.y)return;
     lines+=`<line x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}" class="na-route"/>`;});
-  // route stops numbered (in order, dedupe identical positions but keep order)
   let stopsSvg="";const seenPos={};legs.forEach((l,i)=>{const g=VENUE_GEO[l.venue];if(!g)return;
     const key=g.x+","+g.y;const dup=seenPos[key];seenPos[key]=1;
     if(dup)return;
-    stopsSvg+=`<g class="na-stop"><circle cx="${g.x}" cy="${g.y}" r="13"/><text x="${g.x}" y="${g.y+5}">${i+1}</text></g>`;});
+    stopsSvg+=`<g class="na-stop" data-venue="${esc(l.venue)}"><circle cx="${g.x}" cy="${g.y}" r="13"/><text x="${g.x}" y="${g.y+5}">${i+1}</text></g>`;});
+  const ring=`<circle id="naRing" class="na-ring" r="22" style="display:none"/>`;
   const mapSvg=`<svg viewBox="0 0 ${NA_W} ${NA_H}" class="namap" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Projected travel map for ${esc(team)}">
-    ${land}${faint}${lines}${stopsSvg}</svg>`;
-  // legend list
+    ${land}${faint}${lines}${stopsSvg}${ring}</svg>`;
+  // floating info card (filled on selection)
+  const infoCard=`<div class="namap-info" style="display:none" aria-live="polite"><button class="ni-x" aria-label="Clear selection">✕</button><div class="ni-round"></div><div class="ni-opp"></div><div class="ni-line ni-when"></div><div class="ni-line ni-where"></div></div>`;
   const legLines=segs.map((s,i)=>`<div class="tv-leg"><span class="tv-n">${i+1}<i>→</i>${i+2}</span><span class="tv-rt"><b>${s.fromRound}</b> ${esc(venLabel(s.a))} <em>→</em> <b>${s.toRound}</b> ${esc(venLabel(s.b))}</span><span class="tv-mi">${s.mi?fmtMi(s.mi):"same city"}</span></div>`).join("");
   const totalHTML=segs.length?`<div class="tv-total"><span>Total projected travel</span><strong>${fmtMi(total)}</strong></div>`:"";
+  const hint=`<div class="tr-hint">Tap a round to pinpoint it on the map · tap again for the full route</div>`;
+  const mapBox=`<div class="namap-wrap">${infoCard}${mapSvg}</div>`;
   const mapSec=segs.length
-    ? `<div class="tm-sec"><h3>Projected travel</h3><div class="tv-note">If ${esc(team)} keep winning — distance between each knockout venue (straight-line).</div><div class="namap-wrap">${mapSvg}</div><div class="tv-legs">${legLines}</div>${totalHTML}</div>`
-    : `<div class="tm-sec"><h3>Projected travel</h3><div class="tr-empty">Only one knockout match projected so far — the travel map fills in as the route extends.</div><div class="namap-wrap">${mapSvg}</div></div>`;
-  return `<div class="tm-sec"><h3>Projected knockout route</h3><div class="tr-legs">${rows}</div></div>${mapSec}`;
+    ? `<div class="tm-sec" id="tmTravel"><h3>Projected travel</h3><div class="tv-note">If ${esc(team)} keep winning — distance between each knockout venue (straight-line).</div>${mapBox}<div class="tv-legs">${legLines}</div>${totalHTML}<button class="btn tr-rank-btn" type="button" style="width:100%;margin-top:10px">✈️ See full travel ranking</button></div>`
+    : `<div class="tm-sec" id="tmTravel"><h3>Projected travel</h3><div class="tr-empty">Only one knockout match projected so far — the travel map fills in as the route extends.</div>${mapBox}<button class="btn tr-rank-btn" type="button" style="width:100%;margin-top:10px">✈️ See full travel ranking</button></div>`;
+  return `<div class="tm-sec"><h3>Projected knockout route</h3>${hint}<div class="tr-legs">${rows}</div></div>${mapSec}`;
+}
+/* highlight a single venue on the team travel map (or clear). Returns true if a venue is now selected. */
+function teamMapSelect(scope,venue,opts){
+  opts=opts||{};
+  const svg=scope.querySelector(".namap");if(!svg)return false;
+  const cur=svg.getAttribute("data-sel");
+  if(!venue||cur===venue){teamMapClear(scope);return false;}
+  svg.setAttribute("data-sel",venue);svg.classList.add("has-sel");
+  scope.querySelectorAll(".tr-leg").forEach(r=>{const on=r.dataset.venue===venue;r.classList.toggle("sel",on);r.setAttribute("aria-pressed",on?"true":"false");});
+  svg.querySelectorAll(".na-stop").forEach(g=>g.classList.toggle("sel",g.dataset.venue===venue));
+  const dot=svg.querySelector(".na-stop.sel circle");
+  const ring=svg.querySelector("#naRing");
+  if(dot&&ring){ring.setAttribute("cx",dot.getAttribute("cx"));ring.setAttribute("cy",dot.getAttribute("cy"));ring.style.display="";}
+  const row=scope.querySelector(".tr-leg.sel"),info=scope.querySelector(".namap-info");
+  if(row&&info){
+    const d=row.dataset;
+    info.querySelector(".ni-round").textContent=d.rfull||"";
+    info.querySelector(".ni-opp").textContent="vs "+(d.opp||"TBC");
+    info.querySelector(".ni-when").textContent="🗓 "+d.date+" · "+d.time;
+    info.querySelector(".ni-where").textContent="📍 "+(d.stadium?d.stadium+" · ":"")+d.city;
+    info.style.display="";
+  }
+  if(opts.scroll){const wrap=scope.querySelector(".namap-wrap");if(wrap&&wrap.scrollIntoView)wrap.scrollIntoView({behavior:"smooth",block:"center"});}
+  return true;
+}
+function teamMapClear(scope){
+  const svg=scope.querySelector(".namap");if(!svg)return;
+  svg.removeAttribute("data-sel");svg.classList.remove("has-sel");
+  scope.querySelectorAll(".tr-leg").forEach(r=>{r.classList.remove("sel");r.setAttribute("aria-pressed","false");});
+  svg.querySelectorAll(".na-stop").forEach(g=>g.classList.remove("sel"));
+  const ring=svg.querySelector("#naRing"),info=scope.querySelector(".namap-info");
+  if(ring)ring.style.display="none";if(info)info.style.display="none";
+}
+/* ---- total projected travel per team (group games + projected KO route) ---- */
+function reachedShort(round){return round?(ROUND_SHORT[round]||round):"Groups";}
+function computeTravelTable(){
+  return ALLTEAMS.map(team=>{
+    const gfix=FIX.filter(f=>f[2]===team||f[3]===team).sort((a,b)=>new Date(koUTC(a))-new Date(koUTC(b)));
+    const chain=gfix.map(f=>f[5]);
+    const route=teamRouteDetailed(team);let reached=null;
+    if(route&&route.length){route.forEach(l=>chain.push(l.venue));reached=route[route.length-1].round;}
+    let mi=0;for(let i=0;i<chain.length-1;i++){if(VENUE_GEO[chain[i]]&&VENUE_GEO[chain[i+1]])mi+=milesBetween(chain[i],chain[i+1]);}
+    return {team,miles:mi,reached};
+  }).sort((a,b)=>b.miles-a.miles||a.team.localeCompare(b.team));
+}
+function openTravelModal(highlight){
+  const rows=computeTravelTable();
+  const body=`<h4>✈️ Projected travel ranking</h4>
+   <p class="tr-rank-note">Total straight-line miles between each team's match cities — every group game plus their projected knockout route, based on the results that are in and the current standings. Re-opens fresh as results finalise.</p>
+   <div class="gtable"><table class="travel-rank">
+     <tr><th>#</th><th>Team</th><th>Reaches</th><th>Miles</th></tr>
+     ${rows.map((r,i)=>`<tr class="${r.team===highlight?"me":""}"><td class="rk">${i+1}</td><td class="tm"><span class="fl">${fl(r.team)}</span> ${esc(r.team)}</td><td class="rd">${reachedShort(r.reached)}</td><td class="mi">${fmtMi(r.miles)}</td></tr>`).join("")}
+   </table></div>`;
+  showModal(body,"wide");
 }
 /* ================= TEAM PAGES ================= */
 function roundOf(no){return no>=104?"Final":no===103?"3rd place":no>=101?"Semi-final":no>=97?"Quarter-final":no>=89?"Round of 16":"Round of 32";}
@@ -1699,22 +1810,20 @@ function teamMatchRow(f,team){
   }else scoreTxt=`${timeLabel(utc)} ${tzAbbr()}`;
   return `<div class="tm-row ${cls}">
     <span class="tm-date">${shortDay(utc)}</span>
-    <span class="tm-opp">${isHome?"vs":"@"} <span class="fl">${fl(opp)}</span> ${esc(opp)}</span>
+    <span class="tm-opp">vs <span class="fl">${fl(opp)}</span> ${esc(opp)}</span>
     <span class="tm-sc">${scoreTxt}</span>
     <span class="tm-res ${cls}">${res}</span>
+    ${(sc&&!live)?`<button class="tm-hl" data-hl="${encodeURIComponent(home)}|${encodeURIComponent(away)}|${encodeURIComponent(id||"")}" title="Watch highlights">▶</button>`:""}
   </div>`;
 }
-function openTeam(team){
-  if(!team)return;closeTeam();
+let openTeamName=null;
+function teamOverlayBody(team){
   const g=Object.keys(GROUPS).find(k=>GROUPS[k].includes(team));
   const rows=g?tableFor(g):[];
   const fixtures=FIX.filter(f=>f[2]===team||f[3]===team).sort((a,b)=>new Date(koUTC(a))-new Date(koUTC(b)));
   const goals=(state.scorers||[]).filter(p=>p.team===team);
   const routeHTML=teamKnockoutSection(team);
-  const ov=document.createElement("div");ov.className="team-ov";ov.id="teamOv";ov.tabIndex=-1;
-  ov.innerHTML=`<div class="team-ov-bar"><span class="team-ov-h"><span class="fl">${fl(team)}</span> ${esc(team)}</span><button class="zbtn close" id="teamClose">✕ Close</button></div>
-   <div class="team-ov-body">
-    <div class="tm-hero"><span class="fl big">${fl(team)}</span><div><div class="tm-name">${esc(team)}</div><div class="tm-grp">${g?`Group ${g}`:"—"}</div></div></div>
+  return `<div class="tm-hero"><span class="fl big">${fl(team)}</span><div><div class="tm-name">${esc(team)}</div><div class="tm-grp">${g?`Group ${g}`:"—"}</div></div></div>
     ${g?`<div class="tm-sec"><h3>Group ${g}</h3><div class="gtable"><table>
       <tr><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr>
       ${rows.map((r,i)=>`<tr class="${i<2?"q1":i===2?"q3":""} ${r.team===team?"me":""}">
@@ -1723,14 +1832,43 @@ function openTeam(team){
     </table></div></div>`:""}
     <div class="tm-sec"><h3>Matches</h3><div class="tm-list">${fixtures.map(f=>teamMatchRow(f,team)).join("")}</div></div>
     ${goals.length?`<div class="tm-sec"><h3>Goals</h3><div class="tm-list">${goals.map(p=>`<div class="tm-row"><span class="tm-opp">${esc(p.name)}</span><span class="tm-sc">${p.goals}</span></div>`).join("")}</div></div>`:""}
-    ${routeHTML}
-   </div>`;
+    ${routeHTML}`;
+}
+function openTeam(team){
+  if(!team)return;closeTeam();
+  openTeamName=team;
+  const ov=document.createElement("div");ov.className="team-ov";ov.id="teamOv";ov.tabIndex=-1;
+  ov.innerHTML=`<div class="team-ov-bar"><span class="team-ov-h"><span class="fl">${fl(team)}</span> ${esc(team)}</span><button class="zbtn close" id="teamClose">✕ Close</button></div>
+   <div class="team-ov-body">${teamOverlayBody(team)}</div>`;
   document.body.appendChild(ov);document.body.style.overflow="hidden";
   document.getElementById("teamClose").addEventListener("click",closeTeam);
-  ov.addEventListener("keydown",e=>{if(e.key==="Escape")closeTeam();});
+  ov.addEventListener("keydown",e=>{if(e.key==="Escape"){if(ov.querySelector(".namap.has-sel"))teamMapClear(ov);else closeTeam();}});
+  ov.addEventListener("click",e=>{
+    if(e.target.closest(".tr-rank-btn")){openTravelModal(openTeamName);return;}
+    const hl=e.target.closest("[data-hl]");
+    if(hl){const p=hl.dataset.hl.split("|").map(decodeURIComponent);openHighlights(p[0],p[1],p[2]||"");return;}
+    if(e.target.closest(".ni-x")){teamMapClear(ov);return;}
+    const stop=e.target.closest(".na-stop");
+    if(stop&&stop.dataset.venue){teamMapSelect(ov,stop.dataset.venue);return;}
+    const row=e.target.closest(".tr-leg");
+    if(row&&row.dataset.venue){teamMapSelect(ov,row.dataset.venue,{scroll:true});return;}
+  });
+  ov.addEventListener("keydown",e=>{
+    if((e.key==="Enter"||e.key===" ")){const t=e.target.closest(".tr-leg");if(t&&t.dataset.venue){e.preventDefault();teamMapSelect(ov,t.dataset.venue,{scroll:true});}}
+  });
   ov.focus();
 }
-function closeTeam(){const ov=document.getElementById("teamOv");if(ov)ov.remove();document.body.style.overflow="";}
+function refreshTeamOverlay(){
+  const ov=document.getElementById("teamOv");if(!ov||!openTeamName)return;
+  const body=ov.querySelector(".team-ov-body");if(!body)return;
+  const y=body.scrollTop;
+  const svg=ov.querySelector(".namap");
+  const sel=svg?svg.getAttribute("data-sel"):null;
+  body.innerHTML=teamOverlayBody(openTeamName);
+  body.scrollTop=y;
+  if(sel)teamMapSelect(ov,sel); // re-pin previously selected round (no scroll)
+}
+function closeTeam(){const ov=document.getElementById("teamOv");if(ov)ov.remove();document.body.style.overflow="";openTeamName=null;}
 
 /* ================= NOTIFICATIONS (foreground) ================= */
 let lastAlertCheck=0;
