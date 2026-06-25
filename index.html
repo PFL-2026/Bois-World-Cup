@@ -395,6 +395,54 @@ body{-webkit-tap-highlight-color:transparent}
 .thirds tr.qout td:first-child{box-shadow:inset 4px 0 0 rgba(243,239,227,.2)}
 .thirds tr.cut td{border-bottom:2px solid var(--gold)}
 .thirds td.grp-cell{font-weight:700;color:var(--gold)}
+
+/* header actions + alert button */
+.util-actions{display:flex;align-items:center;gap:8px}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:999px;border:1.5px solid var(--soft);background:rgba(255,255,255,.04);color:var(--ink);font-size:16px;cursor:pointer;flex:none;transition:transform .1s,border-color .15s,background .15s}
+.icon-btn.on{border-color:var(--gold);background:rgba(231,189,87,.16)}
+.icon-btn:active{transform:scale(.94)}
+
+/* tappable team-name cue */
+.tgo{cursor:pointer;text-decoration:underline;text-decoration-color:rgba(231,189,87,.35);text-underline-offset:2px}
+.tgo:hover{text-decoration-color:var(--gold);color:var(--ink)}
+
+/* team page overlay */
+.team-ov{position:fixed;inset:0;z-index:130;background:linear-gradient(180deg,#08251b,#061a13);display:flex;flex-direction:column}
+.team-ov-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(12px + env(safe-area-inset-top,0px)) 16px 12px;border-bottom:1px solid var(--soft);background:rgba(8,33,25,.92)}
+.team-ov-h{font-family:'Anton',sans-serif;font-size:17px;letter-spacing:.04em;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.team-ov-h .fl{font-size:20px}
+.team-ov-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;max-width:760px;margin:0 auto;width:100%}
+.tm-hero{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+.tm-hero .fl.big{font-size:54px;line-height:1}
+.tm-name{font-family:'Anton',sans-serif;font-size:30px;letter-spacing:.02em;text-transform:uppercase;line-height:1}
+.tm-grp{color:var(--gold);font-size:13px;letter-spacing:.06em;margin-top:3px}
+.tm-sec{margin-bottom:22px}
+.tm-sec h3{font-family:'Anton',sans-serif;font-weight:400;font-size:15px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
+.tm-list{display:flex;flex-direction:column;gap:6px}
+.tm-row{display:flex;align-items:center;gap:10px;background:linear-gradient(180deg,var(--card),var(--card-2));border:1px solid var(--soft);border-radius:10px;padding:10px 12px}
+.tm-date{font-size:11px;color:var(--muted);width:60px;flex:none}
+.tm-opp{flex:1;min-width:0;display:flex;align-items:center;gap:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tm-opp .fl{font-size:17px}
+.tm-sc{font-family:'Anton',sans-serif;font-size:16px;letter-spacing:.02em;flex:none}
+.tm-res{font:700 11px 'Space Grotesk',sans-serif;min-width:26px;text-align:center;flex:none;border-radius:5px;padding:3px 4px}
+.tm-res.win{background:rgba(73,212,157,.2);color:var(--green-q)}
+.tm-res.loss{background:rgba(224,73,59,.2);color:#ff8273}
+.tm-res.draw{background:rgba(243,239,227,.14);color:var(--muted)}
+.tm-res.live{background:#ff5240;color:#fff}
+.tm-row.win{border-color:rgba(73,212,157,.32)}
+.tm-row.loss{border-color:rgba(224,73,59,.28)}
+.tm-row.live{border-color:rgba(255,82,64,.5)}
+.gtable tr.me td{background:rgba(231,189,87,.12);font-weight:700}
+.tm-route{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px}
+.tm-route span{background:rgba(231,189,87,.14);border:1px solid rgba(231,189,87,.3);color:var(--gold);border-radius:999px;padding:4px 10px;white-space:nowrap}
+.tm-route i{color:var(--muted);font-style:normal}
+
+/* youtube highlights modal */
+.modal.wide{max-width:680px;width:calc(100vw - 28px)}
+.yt-wrap{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden;margin:6px 0 10px}
+.yt-wrap iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.yt-note{font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.5}
+.yt-links{display:flex;gap:8px;flex-wrap:wrap}
 @media (max-width:560px){nav.tabs button{font-size:13px;padding:11px 3px;letter-spacing:.02em}}
 @media (max-width:380px){nav.tabs button{font-size:11.5px;padding:11px 2px}}
 </style>
@@ -417,9 +465,12 @@ body{-webkit-tap-highlight-color:transparent}
         <button id="tzUK" class="on">🇬🇧 UK</button>
         <button id="tzAU">🇦🇺 BRIS</button>
       </div>
-      <button class="sync-btn" id="syncBtn" title="Pull official results from the last 3 days">
-        <span class="sync-ico">↻</span><span class="sync-tx">Sync</span>
-      </button>
+      <div class="util-actions">
+        <button class="icon-btn" id="alertBtn" title="Match alerts" aria-label="Match alerts">🔔</button>
+        <button class="sync-btn" id="syncBtn" title="Pull official results from the last 3 days">
+          <span class="sync-ico">↻</span><span class="sync-tx">Sync</span>
+        </button>
+      </div>
     </div>
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button data-tab="fixtures" class="on">Fixtures</button>
@@ -884,7 +935,7 @@ async function syncScores(auto){
   if(btn)btn.classList.remove("syncing");
   if(!connected){feedConnected=false;updateFeedStat();if(!auto)toast("Couldn't reach the data sources — try again shortly");return null;}
   feedConnected=true;feedAt=Date.now();feedLive=acc.live;state.koTimes=acc.overrides;state.lastSync=Date.now();saveState();
-  renderKeep();updateFeedStat();
+  renderKeep();updateFeedStat();checkAlerts();
   if(!auto){
     const liveN=liveMatches().length;
     if(acc.added||acc.fixed)toast(`Synced ✅ ${acc.added} new${acc.fixed?", "+acc.fixed+" updated":""}${liveN?` · ${liveN} live 🔴`:""}`);
@@ -926,8 +977,21 @@ function scoreCell(id,home,away,utc){
 const editing=new Set();
 function highlightsLink(home,away){
   if(!home||!away)return "";
-  const q=encodeURIComponent(home+" v "+away);
-  return `<a class="btn replay" href="https://www.bbc.co.uk/iplayer/search?q=${q}" target="_blank" rel="noopener" title="Watch highlights on BBC iPlayer">▶ Highlights</a>`;
+  return `<button class="btn replay" data-hl="${encodeURIComponent(home)}|${encodeURIComponent(away)}" title="Watch highlights in-app">▶ Highlights</button>`;
+}
+function openHighlights(home,away){
+  const q=encodeURIComponent(home+" v "+away+" World Cup 2026 highlights");
+  const embed=`https://www.youtube-nocookie.com/embed?listType=search&list=${q}&rel=0&modestbranding=1`;
+  const ytSearch=`https://www.youtube.com/results?search_query=${q}`;
+  const bbc=`https://www.bbc.co.uk/iplayer/search?q=${encodeURIComponent(home+" v "+away)}`;
+  const html=`<h4>▶ ${esc(home)} v ${esc(away)}</h4>
+    <div class="yt-wrap"><iframe src="${embed}" title="Match highlights" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+    <p class="yt-note">Loads the top YouTube result for this fixture's highlights. If nothing plays (or it's the wrong clip), use a link below.</p>
+    <div class="yt-links">
+      <a class="btn replay" href="${ytSearch}" target="_blank" rel="noopener">Open on YouTube ↗</a>
+      <a class="btn ghost" href="${bbc}" target="_blank" rel="noopener">BBC iPlayer · UK ↗</a>
+    </div>`;
+  showModal(html,"wide");
 }
 /* ---- live / status helpers (feed-aware) ---- */
 const LIVE_MIN=140; // minutes a match counts as in-progress (offline fallback only)
@@ -967,9 +1031,9 @@ function matchCard(f){
     ${tag}
     <div class="mtop"><span><span class="grp">Group ${g}</span> &middot; ${venue}</span><span>${shortDay(utc)} &middot; ${timeLabel(utc)} ${tzAbbr()}</span></div>
     <div class="teams">
-      <div class="team"><span class="fl">${fl(home)}</span><span class="nm">${esc(home)}</span></div>
+      <div class="team"><span class="fl">${fl(home)}</span><span class="nm tgo" data-team-go="${esc(home)}">${esc(home)}</span></div>
       ${mid}
-      <div class="team away"><span class="fl">${fl(away)}</span><span class="nm">${esc(away)}</span></div>
+      <div class="team away"><span class="fl">${fl(away)}</span><span class="nm tgo" data-team-go="${esc(away)}">${esc(away)}</span></div>
     </div>
     <div class="mbot">
       <div class="tv">${chanHTML(ukChan)}</div>
@@ -1078,7 +1142,7 @@ function renderScorers(){
     html+=`<div class="scorer ${p.goals===top?"lead":""}">
       <span class="rk">${medal}</span>
       <span class="fl">${fl(p.team)}</span>
-      <span class="pn"><span class="pname">${esc(p.name)}</span><span class="ptm">${esc(p.team)}</span></span>
+      <span class="pn"><span class="pname">${esc(p.name)}</span><span class="ptm tgo" data-team-go="${esc(p.team)}">${esc(p.team)}</span></span>
       <span class="gz">${p.goals}</span>
     </div>`;
   });
@@ -1094,7 +1158,7 @@ function renderThirds(){
     <tr><th>#</th><th>Team</th><th>Grp</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr>
     ${th.map((r,i)=>`<tr class="${i<8?"qin":"qout"}${i===7?" cut":""}">
       <td class="pos">${i+1}</td>
-      <td class="t"><span class="fl">${fl(r.team)}</span>${esc(r.team)}</td>
+      <td class="t tgo" data-team-go="${esc(r.team)}"><span class="fl">${fl(r.team)}</span>${esc(r.team)}</td>
       <td class="grp-cell">${r.g}</td>
       <td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf-r.ga>0?"+":""}${r.gf-r.ga}</td><td class="pts">${r.pts}</td>
     </tr>`).join("")}
@@ -1118,7 +1182,7 @@ function renderGroups(){
     html+=`<div class="gtable"><h4>Group ${g}</h4><table>
       <tr><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr>
       ${t.map((r,i)=>`<tr class="${i<2?"q1":i===2?"q3":""}">
-        <td class="t"><span class="fl">${fl(r.team)}</span>${esc(r.team)}</td>
+        <td class="t tgo" data-team-go="${esc(r.team)}"><span class="fl">${fl(r.team)}</span>${esc(r.team)}</td>
         <td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf-r.ga>0?"+":""}${r.gf-r.ga}</td><td class="pts">${r.pts}</td></tr>`).join("")}
     </table></div>`;
   });
@@ -1444,6 +1508,10 @@ function setTZ(z){
   render();
 }
 view.addEventListener("click",e=>{
+  const tgo=e.target.closest("[data-team-go]");
+  if(tgo){openTeam(tgo.dataset.teamGo);return;}
+  const hl=e.target.closest("[data-hl]");
+  if(hl){const p=hl.dataset.hl.split("|").map(decodeURIComponent);openHighlights(p[0],p[1]);return;}
   const save=e.target.closest("[data-save]");
   const edit=e.target.closest("[data-edit]");
   const pen=e.target.closest("[data-pen]");
@@ -1489,6 +1557,103 @@ function clearDownstream(no){
   });
 }
 
+/* ================= TEAM PAGES ================= */
+function roundOf(no){return no>=104?"Final":no===103?"3rd place":no>=101?"Semi-final":no>=97?"Quarter-final":no>=89?"Round of 16":"Round of 32";}
+function teamMatchRow(f,team){
+  const[id,g,home,away,,venue]=f;const utc=koUTC(f);
+  const r=state.results[id],lf=feedLive[id],live=isLive(f);
+  const isHome=home===team,opp=isHome?away:home;
+  const sc=r||(live&&lf&&lf.sc?lf.sc:null);
+  let scoreTxt,cls="",res="";
+  if(sc){const my=isHome?sc[0]:sc[1],ot=isHome?sc[1]:sc[0];
+    cls=live?"live":(my>ot?"win":my<ot?"loss":"draw");
+    scoreTxt=`${my}–${ot}`;res=live?"LIVE":(cls==="win"?"W":cls==="loss"?"L":"D");
+  }else scoreTxt=`${timeLabel(utc)} ${tzAbbr()}`;
+  return `<div class="tm-row ${cls}">
+    <span class="tm-date">${shortDay(utc)}</span>
+    <span class="tm-opp">${isHome?"vs":"@"} <span class="fl">${fl(opp)}</span> ${esc(opp)}</span>
+    <span class="tm-sc">${scoreTxt}</span>
+    <span class="tm-res ${cls}">${res}</span>
+  </div>`;
+}
+function openTeam(team){
+  if(!team)return;closeTeam();
+  const g=Object.keys(GROUPS).find(k=>GROUPS[k].includes(team));
+  const rows=g?tableFor(g):[];
+  const fixtures=FIX.filter(f=>f[2]===team||f[3]===team).sort((a,b)=>new Date(koUTC(a))-new Date(koUTC(b)));
+  const goals=(state.scorers||[]).filter(p=>p.team===team);
+  const route=teamRoute(team);
+  let routeHTML="";
+  if(route&&!route.none&&route.boxes&&route.boxes.size){
+    const labels=[];[...route.boxes].sort((a,b)=>a-b).forEach(no=>{const l=roundOf(no);if(!labels.includes(l))labels.push(l);});
+    routeHTML=`<div class="tm-sec"><h3>Projected knockout route</h3><div class="tm-route">${labels.map(l=>`<span>${l}</span>`).join('<i>→</i>')}</div></div>`;
+  }
+  const ov=document.createElement("div");ov.className="team-ov";ov.id="teamOv";ov.tabIndex=-1;
+  ov.innerHTML=`<div class="team-ov-bar"><span class="team-ov-h"><span class="fl">${fl(team)}</span> ${esc(team)}</span><button class="zbtn close" id="teamClose">✕ Close</button></div>
+   <div class="team-ov-body">
+    <div class="tm-hero"><span class="fl big">${fl(team)}</span><div><div class="tm-name">${esc(team)}</div><div class="tm-grp">${g?`Group ${g}`:"—"}</div></div></div>
+    ${g?`<div class="tm-sec"><h3>Group ${g}</h3><div class="gtable"><table>
+      <tr><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr>
+      ${rows.map((r,i)=>`<tr class="${i<2?"q1":i===2?"q3":""} ${r.team===team?"me":""}">
+        <td class="t"><span class="fl">${fl(r.team)}</span>${esc(r.team)}</td>
+        <td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf-r.ga>0?"+":""}${r.gf-r.ga}</td><td class="pts">${r.pts}</td></tr>`).join("")}
+    </table></div></div>`:""}
+    <div class="tm-sec"><h3>Matches</h3><div class="tm-list">${fixtures.map(f=>teamMatchRow(f,team)).join("")}</div></div>
+    ${goals.length?`<div class="tm-sec"><h3>Goals</h3><div class="tm-list">${goals.map(p=>`<div class="tm-row"><span class="tm-opp">${esc(p.name)}</span><span class="tm-sc">${p.goals}</span></div>`).join("")}</div></div>`:""}
+    ${routeHTML}
+   </div>`;
+  document.body.appendChild(ov);document.body.style.overflow="hidden";
+  document.getElementById("teamClose").addEventListener("click",closeTeam);
+  ov.addEventListener("keydown",e=>{if(e.key==="Escape")closeTeam();});
+  ov.focus();
+}
+function closeTeam(){const ov=document.getElementById("teamOv");if(ov)ov.remove();document.body.style.overflow="";}
+
+/* ================= NOTIFICATIONS (foreground) ================= */
+let lastAlertCheck=0;
+function notify(title,body){
+  const opts={body,icon:"icon-192.png",badge:"icon-192.png",tag:title};
+  try{if(typeof swReg!=="undefined"&&swReg&&swReg.showNotification){swReg.showNotification(title,opts);return;}}catch(e){}
+  try{new Notification(title,opts);}catch(e){}
+}
+function updateAlertBtn(){
+  const b=document.getElementById("alertBtn");if(!b)return;
+  const on=state.notify&&("Notification"in window)&&Notification.permission==="granted";
+  b.textContent=on?"🔔":"🔕";b.classList.toggle("on",!!on);
+  b.title=on?"Match alerts on":"Turn on match alerts";
+}
+async function toggleAlerts(){
+  if(!("Notification"in window)){toast("This browser doesn't support notifications");return;}
+  if(state.notify){state.notify=false;saveState();updateAlertBtn();toast("Match alerts off 🔕");return;}
+  let perm=Notification.permission;
+  if(perm!=="granted")perm=await Notification.requestPermission();
+  if(perm!=="granted"){toast("Allow notifications in your browser settings to enable alerts");return;}
+  state.notify=true;state.alerted=state.alerted||{soon:{},ft:{}};
+  Object.keys(state.results).forEach(id=>{state.alerted.ft[id]=1;});
+  saveState();updateAlertBtn();
+  toast("Match alerts on 🔔 — kickoff & full-time pings while the app's open");
+  checkAlerts();
+}
+function checkAlerts(){
+  if(!state.notify||!("Notification"in window)||Notification.permission!=="granted")return;
+  state.alerted=state.alerted||{soon:{},ft:{}};const now=Date.now();let dirty=false;
+  upcomingMatches().forEach(f=>{
+    const ms=new Date(koUTC(f)).getTime()-now;
+    if(ms>0&&ms<=60*60000&&!state.alerted.soon[f[0]]){
+      notify(`⚽ Kicks off soon: ${f[2]} v ${f[3]}`,`${timeLabel(koUTC(f))} ${tzAbbr()} · ${f[5]}`);
+      state.alerted.soon[f[0]]=1;dirty=true;
+    }
+  });
+  Object.keys(state.results).forEach(id=>{
+    if(!state.alerted.ft[id]){
+      const f=FIX.find(x=>x[0]===id);
+      if(f){const r=state.results[id];notify(`📋 Full time: ${f[2]} ${r[0]}–${r[1]} ${f[3]}`,`Group ${f[1]}`);}
+      state.alerted.ft[id]=1;dirty=true;
+    }
+  });
+  if(dirty)saveState();
+}
+
 /* ================= MODAL ================= */
 const MODALS={
 about:`<h4>ℹ️ About &amp; terms</h4>
@@ -1505,11 +1670,11 @@ ko:`<h4>🏆 How the knockouts work</h4>
 <p><b>Entering results:</b> score boxes open once both teams in a tie are locked. Draws prompt you for the penalty shootout winner. Winners flow through to the next round automatically — and if you edit an earlier result and the winner changes, everything downstream resets so the bracket never lies to you.</p>`
 };
 let modalEl=null;
-function showModal(html){
+function showModal(html,cls){
   closeModal();
   modalEl=document.createElement("div");
   modalEl.className="modal-bg";
-  modalEl.innerHTML=`<div class="modal" role="dialog" aria-modal="true">${html}<button class="x" aria-label="Close">✕</button></div>`;
+  modalEl.innerHTML=`<div class="modal ${cls||""}" role="dialog" aria-modal="true">${html}<button class="x" aria-label="Close">✕</button></div>`;
   document.body.appendChild(modalEl);
   modalEl.addEventListener("click",e=>{if(e.target===modalEl||e.target.classList.contains("x"))closeModal();});
   document.addEventListener("keydown",escClose);
@@ -1521,7 +1686,10 @@ function closeModal(){
 }
 
 document.getElementById("syncBtn").addEventListener("click",()=>syncScores(false));
+document.getElementById("alertBtn").addEventListener("click",toggleAlerts);
 (function(){const a=document.querySelector('.about-row [data-modal="about"]');if(a)a.addEventListener("click",()=>showModal(MODALS.about));})();
+let swReg=null;
+if("serviceWorker"in navigator){navigator.serviceWorker.register("sw.js").then(r=>{swReg=r;}).catch(()=>{});}
 
 /* ================= INIT ================= */
 (async()=>{
@@ -1529,7 +1697,9 @@ document.getElementById("syncBtn").addEventListener("click",()=>syncScores(false
   if(state.koTimes){Object.keys(state.koTimes).forEach(k=>{const v=state.koTimes[k];if(typeof v!=="string"||v.indexOf("T")<0)delete state.koTimes[k];});}
   syncHeadH();requestAnimationFrame(syncHeadH);
   animateView();
+  updateAlertBtn();
   setInterval(tickCountdown,1000);
+  setInterval(checkAlerts,30000);
   await syncScores(true);
   scheduleSync();
 })();
