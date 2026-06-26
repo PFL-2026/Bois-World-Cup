@@ -507,6 +507,16 @@ body{-webkit-tap-highlight-color:transparent}
 .yt-wrap iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .yt-note{font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.5}
 .yt-links{display:flex;gap:8px;flex-wrap:wrap}
+.yt-empty{aspect-ratio:16/9;width:100%;background:linear-gradient(160deg,#0c2c20,#06190f);border:1px dashed var(--soft);border-radius:10px;margin:6px 0 10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:16px}
+.yt-empty-ic{width:54px;height:54px;border-radius:50%;background:rgba(231,189,87,.14);border:1px solid var(--gold-2);color:var(--gold);font-size:22px;display:flex;align-items:center;justify-content:center}
+.yt-empty-tx{color:var(--muted);font-size:13px;max-width:320px;line-height:1.5}
+.yt-loading{display:flex;align-items:center;justify-content:center;gap:12px;color:var(--muted);font-size:13px}
+.yt-spin{width:24px;height:24px;border-radius:50%;border:3px solid rgba(243,239,227,.2);border-top-color:var(--gold);animation:ytspin .8s linear infinite}
+@keyframes ytspin{to{transform:rotate(360deg)}}
+.yt-set{display:flex;gap:8px;margin:0 0 12px}
+.yt-set input{flex:1;min-width:0;background:rgba(243,239,227,.06);border:1px solid var(--soft);border-radius:8px;color:var(--ink);padding:9px 11px;font-size:13px;font-family:inherit}
+.yt-set input:focus{outline:none;border-color:var(--gold-2);background:rgba(243,239,227,.09)}
+.yt-set .btn{flex:none}
 @media (max-width:560px){nav.tabs button{font-size:13px;padding:11px 3px;letter-spacing:.02em}}
 @media (max-width:380px){nav.tabs button{font-size:11.5px;padding:11px 2px}}
 </style>
@@ -680,6 +690,10 @@ const KO_UK_CHAN={104:"BBC One + ITV1"};
 
 /* ================= STATE & STORAGE ================= */
 let state={tz:"UK",results:{g1:[2,0]},pens:{},videos:{},lastSync:0};
+/* Optional: paste a referrer-restricted YouTube Data API key to auto-find highlights for every match.
+   Safe to commit when locked to your GitHub Pages domain. Leave "" to rely on the feed + manual paste. */
+const YT_API_KEY="";
+function ytApiKey(){return ((state&&state.ytKey)||YT_API_KEY||"").trim();}
 /* Persistence: Claude's storage API when running as a published artifact;
    guarded localStorage fallback when the HTML file is opened standalone. */
 function hasClaudeStorage(){return typeof window!=="undefined"&&!!window.storage;}
@@ -1041,31 +1055,109 @@ function scoreCell(id,home,away,utc){
   </div>`;
 }
 const editing=new Set();
-function ytId(u){if(!u)return"";u=String(u);const m=u.match(/(?:v=|\/embed\/|youtu\.be\/|\/v\/|\/shorts\/)([\w-]{11})/);return m?m[1]:"";}
+function ytId(u){
+  if(!u)return"";u=String(u).trim();
+  if(/^[\w-]{11}$/.test(u))return u;
+  const m=u.match(/(?:youtu\.be\/|\/embed\/|\/shorts\/|\/v\/|[?&]v=)([\w-]{11})/);
+  return m?m[1]:"";
+}
+function ytEmbedSrc(id,auto){
+  let o="";try{if(typeof location!=="undefined"&&/^https?:/.test(location.origin))o="&origin="+encodeURIComponent(location.origin);}catch(e){}
+  return `https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1&playsinline=1&iv_load_policy=3${auto?"&autoplay=1":""}${o}`;
+}
 function highlightsLink(home,away,id){
   if(!home||!away)return "";
   const has=id&&state.videos&&state.videos[id]?"1":"";
   return `<button class="btn replay" data-hl="${encodeURIComponent(home)}|${encodeURIComponent(away)}|${encodeURIComponent(id||"")}" title="Watch highlights in-app">▶ Highlights${has?" ✓":""}</button>`;
 }
+function setMatchVideo(id,url,home,away){
+  const vid=ytId(url);
+  if(!vid){toast("That doesn't look like a YouTube link 🤔");return;}
+  state.videos=state.videos||{};state.videos[id]="https://youtu.be/"+vid;saveState();
+  toast("Highlights linked ✓");
+  openHighlights(home,away,id);
+  try{renderKeep();}catch(e){}
+}
+function clearMatchVideo(id,home,away){
+  if(state.videos&&state.videos[id]){delete state.videos[id];saveState();toast("Highlights link removed");}
+  openHighlights(home,away,id);
+  try{renderKeep();}catch(e){}
+}
+/* Keyless highlight resolution: race public YouTube front-ends (CORS-enabled), cache the winner.
+   Official Data API is used first only if a key is configured. */
+const HL_BACKENDS=[
+  {type:"piped",base:"https://pipedapi.kavin.rocks"},
+  {type:"piped",base:"https://pipedapi.adminforge.de"},
+  {type:"piped",base:"https://api.piped.private.coffee"},
+  {type:"inv",base:"https://invidious.nerdvpn.de"},
+  {type:"inv",base:"https://inv.nadeko.net"},
+  {type:"inv",base:"https://yewtu.be"}
+];
+async function fetchJSON(url,ms){
+  const c=("AbortController"in window)?new AbortController():null;
+  const t=c?setTimeout(()=>c.abort(),ms||5000):0;
+  try{const r=await fetch(url,c?{signal:c.signal}:{});if(t)clearTimeout(t);if(!r.ok)return null;return await r.json();}
+  catch(e){if(t)clearTimeout(t);return null;}
+}
+async function searchYouTubeId(query){
+  const q=encodeURIComponent(query);
+  const key=ytApiKey();
+  if(key){
+    const j=await fetchJSON(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=1&q=${q}&key=${key}`,6000);
+    const vid=j&&j.items&&j.items[0]&&j.items[0].id&&j.items[0].id.videoId;
+    if(vid)return vid;
+  }
+  const tasks=HL_BACKENDS.map(b=>(async()=>{
+    if(b.type==="piped"){
+      const j=await fetchJSON(`${b.base}/search?q=${q}&filter=videos`,5000);
+      const items=(j&&(j.items||j))||[];
+      for(const it of items){const vid=ytId(it.url||it.videoId||"");if(vid)return vid;}
+      throw 0;
+    }else{
+      const j=await fetchJSON(`${b.base}/api/v1/search?q=${q}&type=video`,5000);
+      if(Array.isArray(j))for(const it of j){if(it.videoId&&/^[\w-]{11}$/.test(it.videoId))return it.videoId;}
+      throw 0;
+    }
+  })());
+  try{return await Promise.any(tasks);}catch(e){return null;}
+}
+async function resolveHighlight(id,home,away){
+  if(!id)return null;
+  const vid=await searchYouTubeId(home+" vs "+away+" highlights FIFA World Cup 2026");
+  if(vid){state.videos=state.videos||{};state.videos[id]="https://youtu.be/"+vid;saveState();return vid;}
+  return null;
+}
 function openHighlights(home,away,id){
-  const q=encodeURIComponent(home+" v "+away+" World Cup 2026 highlights");
-  const vid=id&&state.videos?ytId(state.videos[id]):"";
-  const embed=vid
-    ? `https://www.youtube-nocookie.com/embed/${vid}?rel=0&modestbranding=1`
-    : `https://www.youtube-nocookie.com/embed?listType=search&list=${q}&rel=0&modestbranding=1`;
+  const q=encodeURIComponent(home+" vs "+away+" highlights 2026 FIFA World Cup");
   const ytSearch=`https://www.youtube.com/results?search_query=${q}`;
   const bbc=`https://www.bbc.co.uk/iplayer/search?q=${encodeURIComponent(home+" v "+away)}`;
-  const note=vid
-    ? "Official highlights for this fixture, embedded to play right here."
-    : "Loads the top YouTube result for this fixture's highlights. If nothing plays (or it's the wrong clip), use a link below.";
-  const html=`<h4>▶ ${esc(home)} v ${esc(away)}</h4>
-    <div class="yt-wrap"><iframe src="${embed}" title="Match highlights" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
-    <p class="yt-note">${note}</p>
-    <div class="yt-links">
-      <a class="btn replay" href="${ytSearch}" target="_blank" rel="noopener">Open on YouTube ↗</a>
-      <a class="btn ghost" href="${bbc}" target="_blank" rel="noopener">BBC iPlayer · UK ↗</a>
-    </div>`;
+  const vid=id&&state.videos?ytId(state.videos[id]):"";
+  const autoTry=!vid&&!!id;
+  let player;
+  if(vid){
+    player=`<div class="yt-wrap"><iframe src="${ytEmbedSrc(vid,true)}" title="Match highlights" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+      <p class="yt-note">Playing the highlights linked to this match. Wrong clip? Paste a different YouTube link below.</p>`;
+  }else if(autoTry){
+    player=`<div class="yt-wrap yt-loading" id="ytLoad"><div class="yt-spin"></div><span>Finding highlights…</span></div>
+      <p class="yt-note">Looking up the highlights for this fixture. If it can't find the right clip, paste a link below.</p>`;
+  }else{
+    player=`<div class="yt-empty"><div class="yt-empty-ic">▶</div><div class="yt-empty-tx">No highlights clip linked for this match yet.</div>
+      <a class="btn replay" href="${ytSearch}" target="_blank" rel="noopener">Find it on YouTube ↗</a></div>
+      <p class="yt-note">Got the official clip? Paste its YouTube link below and it'll play right here from now on.</p>`;
+  }
+  const setRow=id?`<div class="yt-set"><input type="text" id="ytIn" inputmode="url" autocomplete="off" spellcheck="false" placeholder="Paste YouTube link or ID…"><button class="btn" id="ytSave">Embed</button>${vid?`<button class="btn ghost" id="ytClear" title="Remove link">✕</button>`:""}</div>`:"";
+  const html=`<h4>▶ ${esc(home)} v ${esc(away)}</h4>${player}${setRow}
+    <div class="yt-links"><a class="btn ghost" href="${ytSearch}" target="_blank" rel="noopener">Open on YouTube ↗</a><a class="btn ghost" href="${bbc}" target="_blank" rel="noopener">BBC iPlayer · UK ↗</a></div>`;
   showModal(html,"wide");
+  const inp=modalEl.querySelector("#ytIn"),save=modalEl.querySelector("#ytSave"),clr=modalEl.querySelector("#ytClear");
+  if(save&&inp){const go=()=>setMatchVideo(id,inp.value,home,away);save.addEventListener("click",go);inp.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();go();}});}
+  if(clr)clr.addEventListener("click",()=>clearMatchVideo(id,home,away));
+  if(autoTry)resolveHighlight(id,home,away).then(found=>{
+    if(!modalEl)return;
+    if(found){openHighlights(home,away,id);return;}
+    const l=modalEl.querySelector("#ytLoad");
+    if(l){l.classList.remove("yt-loading","yt-wrap");l.innerHTML='<div class="yt-empty"><div class="yt-empty-ic">▶</div><div class="yt-empty-tx">Couldn\'t find a clip automatically — paste the link below or open YouTube.</div></div>';}
+  });
 }
 /* ---- live / status helpers (feed-aware) ---- */
 const LIVE_MIN=140; // minutes a match counts as in-progress (offline fallback only)
