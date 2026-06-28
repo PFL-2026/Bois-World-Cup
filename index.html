@@ -76,6 +76,12 @@ nav.tabs button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 
 /* filters */
 .filters{display:flex;gap:10px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
+.stage-filter{display:flex;gap:7px;overflow-x:auto;margin:0 -4px 16px;padding:2px 4px 8px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.stage-filter::-webkit-scrollbar{display:none}
+.stage-btn{flex:none;background:rgba(243,239,227,.06);border:1px solid var(--soft);color:var(--muted);border-radius:999px;padding:7px 14px;font:600 13px 'Space Grotesk',sans-serif;cursor:pointer;white-space:nowrap;transition:all .15s}
+.stage-btn:hover{color:var(--ink);border-color:rgba(231,189,87,.4)}
+.stage-btn.on{background:var(--gold);border-color:var(--gold);color:var(--pitch)}
+.ko-note{font-size:12.5px;color:var(--muted);background:rgba(231,189,87,.08);border:1px solid rgba(231,189,87,.22);border-radius:10px;padding:10px 12px;margin-bottom:14px;line-height:1.5}
 .filters label{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
 select.gsel{
   background:var(--card);color:var(--ink);border:1px solid rgba(227,179,65,.45);border-radius:8px;
@@ -1033,7 +1039,7 @@ function scheduleSync(){
 }
 /* ================= RENDER ================= */
 const view=document.getElementById("view");
-let tab="fixtures",groupFilter="ALL",groupView="ALL",koView="bracket",brkTeam="",brkScrollLeft=null;
+let tab="fixtures",groupFilter="ALL",groupView="ALL",koView="bracket",brkTeam="",brkScrollLeft=null,resStage="ALL";
 function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;");}
 function fl(t){return FLAGS[t]||"⚽";}
 function chanHTML(ukChan,koNo){
@@ -1252,31 +1258,55 @@ function updateFeedStat(){
 }
 function bindFixturesCommon(){
   const gs=document.getElementById("gsel");if(gs)gs.addEventListener("change",e=>{groupFilter=e.target.value;render();});
+  view.querySelectorAll(".stage-btn").forEach(b=>b.addEventListener("click",()=>{resStage=b.dataset.stage;render();}));
   updateFeedStat();
   const sb=view.querySelector(".statusbar[data-jump]");
   if(sb){const go=()=>jumpToDay(sb.dataset.jump);sb.addEventListener("click",go);sb.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}});}
 }
+const KO_ROUND_ORDER=["Round of 32","Round of 16","Quarter-finals","Semi-finals","Third-place play-off","The Final"];
+function koDone(m){const id="k"+m.no,r=state.results[id];const ready=m.home&&m.away&&m.hConf&&m.aConf;return ready&&!!r&&!editing.has(id)&&(r[0]!==r[1]||state.pens[id]);}
+function resultItems(){
+  const items=[];
+  FIX.filter(hasResult).forEach(f=>items.push({kind:"g",stage:"Groups",utc:koUTC(f),f}));
+  const M=buildKO();
+  Object.values(M).forEach(m=>{if(koDone(m))items.push({kind:"k",stage:m.round,utc:m.utc,m});});
+  return items;
+}
+function stageFilter(present,hasGroups){
+  const lbl=s=>ROUND_SHORT[s]||s;
+  const btn=(val,txt)=>`<button class="stage-btn ${resStage===val?"on":""}" data-stage="${val}">${txt}</button>`;
+  let b=btn("ALL","All");
+  if(hasGroups)b+=btn("Groups","Groups");
+  b+=present.map(s=>btn(s,lbl(s))).join("");
+  return `<div class="stage-filter">${b}</div>`;
+}
 function renderFixtures(){
-  const list=FIX.filter(f=>!hasResult(f)).filter(f=>groupFilter==="ALL"||f[1]===groupFilter);
-  let html=fixturesStatus()+groupSelect();
-  const days={};list.forEach(f=>{(days[dayKey(koUTC(f))]=days[dayKey(koUTC(f))]||[]).push(f);});
-  const keys=Object.keys(days).sort((a,b)=>new Date(koUTC(days[a][0]))-new Date(koUTC(days[b][0])));
-  if(!keys.length){html+=`<div class="empty">✅ Every game in this view has been played.<br>Check the <b>Results</b> tab for scores.</div>`;}
+  const M=buildKO();
+  const list=Object.values(M).filter(m=>!koDone(m)).sort((a,b)=>new Date(a.utc)-new Date(b.utc));
+  let html=`<div class="results-head"><div class="rh-title">Knockout fixtures</div><div class="rh-sub feedstat" id="feedStat"></div></div>`;
+  if(!allGroupsDone())html+=`<div class="ko-note">🔮 Match-ups fill in as group results land — projected pairings shown until then.</div>`;
+  const days={};list.forEach(m=>{const k=dayKey(m.utc);(days[k]=days[k]||[]).push(m);});
+  const keys=Object.keys(days).sort((a,b)=>new Date(days[a][0].utc)-new Date(days[b][0].utc));
+  if(!keys.length){html+=`<div class="empty">🏆 All knockout games have been played.<br>See the <b>Results</b> tab and the <b>Knockouts</b> bracket.</div>`;}
   else keys.forEach(k=>{
-    const dl=days[k].sort((a,b)=>new Date(koUTC(a))-new Date(koUTC(b)));
-    html+=`<div class="day" id="day-${k}"><h3>${dayLabel(koUTC(dl[0]))}${isToday(koUTC(dl[0]))?'<span class="today">TODAY</span>':""}</h3>${dl.map(matchCard).join("")}</div>`;
+    const dl=days[k].sort((a,b)=>new Date(a.utc)-new Date(b.utc));
+    html+=`<div class="day" id="day-${k}"><h3>${dayLabel(dl[0].utc)}${isToday(dl[0].utc)?'<span class="today">TODAY</span>':""}</h3>${dl.map(m=>koCard(m,true)).join("")}</div>`;
   });
   view.innerHTML=html;bindFixturesCommon();
 }
 function renderResults(){
-  const list=FIX.filter(hasResult).filter(f=>groupFilter==="ALL"||f[1]===groupFilter);
-  let html=`<div class="results-head"><div class="rh-title">Results</div><div class="rh-sub">${list.length} played</div></div>`+groupSelect();
-  const days={};list.forEach(f=>{(days[dayKey(koUTC(f))]=days[dayKey(koUTC(f))]||[]).push(f);});
-  const keys=Object.keys(days).sort((a,b)=>new Date(koUTC(days[b][0]))-new Date(koUTC(days[a][0])));
-  if(!keys.length){html+=`<div class="empty">No results yet.<br>Scores land here automatically as games finish — or add them from <b>Fixtures</b>.</div>`;}
+  const items=resultItems();
+  const present=KO_ROUND_ORDER.filter(s=>items.some(it=>it.stage===s));
+  const hasGroups=items.some(it=>it.stage==="Groups");
+  let html=`<div class="results-head"><div class="rh-title">Results</div><div class="rh-sub">${items.length} played</div></div>`;
+  html+=stageFilter(present,hasGroups);
+  const filt=items.filter(it=>resStage==="ALL"||it.stage===resStage);
+  const days={};filt.forEach(it=>{const k=dayKey(it.utc);(days[k]=days[k]||[]).push(it);});
+  const keys=Object.keys(days).sort((a,b)=>new Date(days[b][0].utc)-new Date(days[a][0].utc));
+  if(!keys.length){html+=`<div class="empty">No results in this view yet.<br>Scores land here automatically as games finish.</div>`;}
   else keys.forEach(k=>{
-    const dl=days[k].sort((a,b)=>new Date(koUTC(b))-new Date(koUTC(a)));
-    html+=`<div class="day" id="day-${k}"><h3>${dayLabel(koUTC(dl[0]))}${isToday(koUTC(dl[0]))?'<span class="today">TODAY</span>':""}</h3>${dl.map(matchCard).join("")}</div>`;
+    const dl=days[k].sort((a,b)=>new Date(b.utc)-new Date(a.utc));
+    html+=`<div class="day" id="day-${k}"><h3>${dayLabel(dl[0].utc)}${isToday(dl[0].utc)?'<span class="today">TODAY</span>':""}</h3>${dl.map(it=>it.kind==="g"?matchCard(it.f):koCard(it.m,true)).join("")}</div>`;
   });
   view.innerHTML=html;bindFixturesCommon();
 }
@@ -1287,10 +1317,14 @@ function jumpToDay(key){
   window.scrollTo({top:Math.max(0,y),behavior:"smooth"});
 }
 function landOnToday(){
-  const live=liveMatches(),up=upcomingMatches();
-  const key=live.length?dayKey(koUTC(live[0])):up.length?dayKey(koUTC(up[0])):null;
-  if(!key){scrollToContent();return;}
-  requestAnimationFrame(()=>jumpToDay(key));
+  requestAnimationFrame(()=>{
+    const todayEl=view.querySelector(".day .today");
+    const el=todayEl?todayEl.closest(".day"):view.querySelector(".day");
+    if(!el){scrollToContent();return;}
+    const head=document.querySelector(".sticky-head");
+    const y=el.getBoundingClientRect().top+window.scrollY-(head?head.offsetHeight:90)-8;
+    window.scrollTo({top:Math.max(0,y),behavior:"smooth"});
+  });
 }
 function renderScorers(){
   const sc=state.scorers||[];
@@ -1360,13 +1394,14 @@ function renderGroups(){
   view.innerHTML=html;
   document.getElementById("gselGroups").addEventListener("change",e=>{groupView=e.target.value;renderGroups();});
 }
-function koCard(m){
+function koCard(m,showRound){
   const id="k"+m.no,r=state.results[id];
   const ready=m.home&&m.away&&m.hConf&&m.aConf;
   const anyProj=(m.home&&!m.hConf)||(m.away&&!m.aConf);
   const done=ready&&!!r&&!editing.has(id)&&(r[0]!==r[1]||state.pens[id]);
   const drawNeedsPens=ready&&!!r&&r[0]===r[1];
   const w=koWinner(m.no);
+  const grpLbl=showRound?(ROUND_SHORT[m.round]||m.round):("M"+m.no);
   let mid;
   if(!ready) mid=`<div class="score-mid"><span class="ko-time">${timeLabel(m.utc)}</span></div>`;
   else if(done) mid=`<div class="score-mid"><span class="fin">${r[0]} – ${r[1]}</span></div>`;
@@ -1374,7 +1409,7 @@ function koCard(m){
   const status=anyProj?'<span class="proj-tag">~ projected</span>':(ready&&!r?'<span class="lock-tag">🔒 locked in</span>':"");
   return `<div class="match ${done?"done":""}">
     ${done?'<span class="ft-tag">'+(state.pens[id]?"AFTER PENS":"FULL TIME")+'</span>':""}
-    <div class="mtop"><span><span class="grp">M${m.no}</span> &middot; ${m.venue} ${status}</span><span>⏰ ${shortDay(m.utc)} &middot; ${timeLabel(m.utc)} ${state.tz==="UK"?"BST":"AEST"}</span></div>
+    <div class="mtop"><span><span class="grp">${grpLbl}</span> &middot; ${m.venue} ${status}</span><span>⏰ ${shortDay(m.utc)} &middot; ${timeLabel(m.utc)} ${state.tz==="UK"?"BST":"AEST"}</span></div>
     <div class="teams">
       <div class="team"><span class="fl">${m.home?fl(m.home):"❔"}</span><span class="nm ${m.home&&!m.hConf?"proj":""}" style="${!m.home?'color:var(--muted);font-weight:400;font-size:13px':''}">${esc(m.home||m.homeLbl)}${w==="H"&&done?" ✅":""}</span></div>
       ${mid}
@@ -1425,7 +1460,7 @@ function renderKO(){
   const rounds=[["Round of 32","28 June – 4 July"],["Round of 16","4 – 7 July"],["Quarter-finals","9 – 12 July"],["Semi-finals","14 – 15 July"],["Third-place play-off","18 July"],["The Final","19 July, MetLife Stadium"]];
   rounds.forEach(([rName,dates])=>{
     const ms=Object.values(M).filter(m=>m.round===rName).sort((a,b)=>new Date(a.utc)-new Date(b.utc));
-    html+=`<div class="ko-round"><h3>${rName}</h3><p>${dates} (US dates)</p><div class="ko-grid">${ms.map(koCard).join("")}</div></div>`;
+    html+=`<div class="ko-round"><h3>${rName}</h3><p>${dates} (US dates)</p><div class="ko-grid">${ms.map(m=>koCard(m)).join("")}</div></div>`;
   });
   const fw=koWinner(104),fm=M[104];
   if(fw&&fm.home&&fm.away){
