@@ -1258,6 +1258,7 @@ function updateFeedStat(){
 }
 function bindFixturesCommon(){
   const gs=document.getElementById("gsel");if(gs)gs.addEventListener("change",e=>{groupFilter=e.target.value;render();});
+  const ft=document.getElementById("fxTeam");if(ft)ft.addEventListener("change",e=>{const t=e.target.value;e.target.value="";if(t)openTeam(t);});
   view.querySelectorAll(".stage-btn").forEach(b=>b.addEventListener("click",()=>{resStage=b.dataset.stage;render();}));
   updateFeedStat();
   const sb=view.querySelector(".statusbar[data-jump]");
@@ -1284,6 +1285,7 @@ function renderFixtures(){
   const M=buildKO();
   const list=Object.values(M).filter(m=>!koDone(m)).sort((a,b)=>new Date(a.utc)-new Date(b.utc));
   let html=`<div class="results-head"><div class="rh-title">Knockout fixtures</div><div class="rh-sub feedstat" id="feedStat"></div></div>`;
+  html+=`<div class="filters"><label for="fxTeam">Team</label><select class="gsel" id="fxTeam" aria-label="Search and open a team's page"><option value="">🔍 Search &amp; open a team…</option>${ALLTEAMS.map(t=>`<option value="${esc(t)}">${fl(t)} ${esc(t)}</option>`).join("")}</select></div>`;
   if(!allGroupsDone())html+=`<div class="ko-note">🔮 Match-ups fill in as group results land — projected pairings shown until then.</div>`;
   const days={};list.forEach(m=>{const k=dayKey(m.utc);(days[k]=days[k]||[]).push(m);});
   const keys=Object.keys(days).sort((a,b)=>new Date(days[a][0].utc)-new Date(days[b][0].utc));
