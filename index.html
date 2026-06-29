@@ -703,19 +703,25 @@ function ytApiKey(){return ((state&&state.ytKey)||YT_API_KEY||"").trim();}
 /* Persistence: Claude's storage API when running as a published artifact;
    guarded localStorage fallback when the HTML file is opened standalone. */
 function hasClaudeStorage(){return typeof window!=="undefined"&&!!window.storage;}
+/* Real final group-stage results (2026 World Cup) — baked in so the bracket reflects the true draw.
+   Live sync and any scores you enter take priority; these only fill gaps. */
+const SEED_RESULTS={"g1":[2,0],"g2":[2,1],"g3":[1,1],"g4":[4,1],"g5":[1,1],"g6":[1,1],"g7":[0,1],"g8":[2,0],"g9":[7,1],"g10":[2,2],"g11":[1,0],"g12":[5,1],"g13":[0,0],"g14":[1,1],"g15":[1,1],"g16":[2,2],"g17":[3,1],"g18":[1,4],"g19":[3,0],"g20":[3,1],"g21":[1,1],"g22":[4,2],"g23":[1,0],"g24":[1,3],"g25":[1,1],"g26":[4,1],"g27":[6,0],"g28":[1,0],"g29":[2,0],"g30":[0,1],"g31":[3,0],"g32":[0,1],"g33":[5,1],"g34":[2,1],"g35":[0,0],"g36":[0,4],"g37":[4,0],"g38":[0,0],"g39":[2,2],"g40":[1,3],"g41":[2,0],"g42":[3,0],"g43":[3,2],"g44":[1,2],"g45":[5,0],"g46":[0,0],"g47":[0,1],"g48":[1,0],"g49":[2,1],"g50":[3,1],"g51":[4,2],"g52":[0,3],"g53":[1,0],"g54":[0,3],"g55":[0,2],"g56":[2,1],"g57":[1,3],"g58":[1,1],"g59":[3,2],"g60":[0,0],"g61":[1,4],"g62":[5,0],"g63":[0,0],"g64":[0,1],"g65":[1,5],"g66":[1,1],"g67":[0,2],"g68":[2,1],"g69":[0,0],"g70":[3,1],"g71":[3,3],"g72":[1,3]};
 async function loadState(){
+  let loaded=null;
   try{
     if(hasClaudeStorage()){
       const r=await window.storage.get("bois-wc-2026");
-      if(r&&r.value){state={...state,...JSON.parse(r.value)};return;}
+      if(r&&r.value)loaded=JSON.parse(r.value);
     }
   }catch(e){/* key not there yet */}
-  if(!hasClaudeStorage()){
+  if(!loaded&&!hasClaudeStorage()){
     try{
       const raw=window.localStorage.getItem("bois-wc-2026");
-      if(raw)state={...state,...JSON.parse(raw)};
+      if(raw)loaded=JSON.parse(raw);
     }catch(e){/* storage unavailable — session-only mode */}
   }
+  if(loaded)state={...state,...loaded};
+  state.results=Object.assign({},SEED_RESULTS,state.results||{});
 }
 let saveTimer=null;
 function saveState(){
@@ -800,23 +806,34 @@ function bestThirds(){
   th.sort((x,y)=>y.pts-x.pts||(y.gf-y.ga)-(x.gf-x.ga)||y.gf-x.gf||x.team.localeCompare(y.team));
   return th.slice(0,8);
 }
-/* assign 8 thirds to the 8 constrained slots (backtracking) */
+/* assign 8 thirds to the 8 constrained slots.
+   FIFA uses a fixed official allocation table (not "any valid arrangement"), so we pin the
+   realized combination to the official slots; unknown combinations fall back to backtracking. */
+const THIRD_ALLOC={"BDEFIJKL":{74:"D",77:"F",79:"E",80:"K",81:"B",82:"I",85:"J",87:"L"}};
 function assignThirds(){
   const slots=R32.filter(m=>m[2].startsWith("T:")).map(m=>({no:m[0],allowed:m[2].slice(2)}));
   const thirds=bestThirds();
-  const used=new Array(thirds.length).fill(false),out={};
+  const key=thirds.map(t=>t.g).slice().sort().join("");
+  const table=THIRD_ALLOC[key];
+  if(table){
+    const byG={};thirds.forEach(t=>{byG[t.g]=t.team;});
+    const out={};let okAll=true;
+    slots.forEach(s=>{const g=table[s.no];if(g&&byG[g])out[s.no]=byG[g];else okAll=false;});
+    if(okAll)return out;
+  }
+  const used=new Array(thirds.length).fill(false),res={};
   function bt(i){
     if(i===slots.length)return true;
     for(let j=0;j<thirds.length;j++){
       if(!used[j]&&slots[i].allowed.includes(thirds[j].g)){
-        used[j]=true;out[slots[i].no]=thirds[j].team;
+        used[j]=true;res[slots[i].no]=thirds[j].team;
         if(bt(i+1))return true;
-        used[j]=false;delete out[slots[i].no];
+        used[j]=false;delete res[slots[i].no];
       }
     }
     return false;
   }
-  bt(0);return out;
+  bt(0);return res;
 }
 function slotInfo(spec,thirdMap,no){
   const[k,v]=spec.split(":");
