@@ -158,6 +158,7 @@ select.gsel:focus{outline:none;border-color:var(--gold)}
 }
 .score-mid input:focus{outline:none;border-color:var(--gold)}
 .fin{font-family:'Anton',sans-serif;font-size:28px}
+.score-mid .ko-extra{display:block;font:600 10px 'Space Grotesk',sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);margin-top:2px;white-space:nowrap}
 .mbot{display:flex;justify-content:space-between;align-items:center;margin-top:9px;gap:8px;flex-wrap:wrap}
 .tv{display:flex;gap:6px;flex-wrap:wrap}
 .chan{
@@ -177,6 +178,10 @@ select.gsel:focus{outline:none;border-color:var(--gold)}
 .btn.ghost:hover{background:rgba(244,239,226,.12);color:var(--ink)}
 .pens{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted);flex-wrap:wrap;margin-top:8px}
 .pens .btn.sel{background:var(--gold);color:#1d1505}
+.pen-row{display:flex;gap:6px;flex-basis:100%}
+.pen-score{display:flex;gap:6px;align-items:center;flex-basis:100%;flex-wrap:wrap;margin-top:4px}
+.pen-score input{width:44px;background:rgba(243,239,227,.06);border:1px solid var(--soft);border-radius:7px;color:var(--ink);padding:6px;font-size:14px;text-align:center;font-family:inherit}
+.pen-score input:focus{outline:none;border-color:var(--gold)}
 .ft-tag{position:absolute;top:-9px;right:12px;background:var(--green-q);color:#06281a;font:700 10px 'Space Grotesk',sans-serif;letter-spacing:.14em;border-radius:4px;padding:2px 8px}
 .nm.proj{font-style:italic;color:var(--muted);font-weight:500}
 .proj-tag{color:var(--gold);font-style:italic;letter-spacing:.04em;text-transform:none}
@@ -695,7 +700,7 @@ const KO_LATER=[
 const KO_UK_CHAN={104:"BBC One + ITV1"};
 
 /* ================= STATE & STORAGE ================= */
-let state={tz:"UK",results:{g1:[2,0]},pens:{},videos:{},lastSync:0};
+let state={tz:"UK",results:{g1:[2,0]},pens:{},koMeta:{},videos:{},lastSync:0};
 /* Optional: paste a referrer-restricted YouTube Data API key to auto-find highlights for every match.
    Safe to commit when locked to your GitHub Pages domain. Leave "" to rely on the feed + manual paste. */
 const YT_API_KEY="";
@@ -705,7 +710,9 @@ function ytApiKey(){return ((state&&state.ytKey)||YT_API_KEY||"").trim();}
 function hasClaudeStorage(){return typeof window!=="undefined"&&!!window.storage;}
 /* Real final group-stage results (2026 World Cup) — baked in so the bracket reflects the true draw.
    Live sync and any scores you enter take priority; these only fill gaps. */
-const SEED_RESULTS={"g1":[2,0],"g2":[2,1],"g3":[1,1],"g4":[4,1],"g5":[1,1],"g6":[1,1],"g7":[0,1],"g8":[2,0],"g9":[7,1],"g10":[2,2],"g11":[1,0],"g12":[5,1],"g13":[0,0],"g14":[1,1],"g15":[1,1],"g16":[2,2],"g17":[3,1],"g18":[1,4],"g19":[3,0],"g20":[3,1],"g21":[1,1],"g22":[4,2],"g23":[1,0],"g24":[1,3],"g25":[1,1],"g26":[4,1],"g27":[6,0],"g28":[1,0],"g29":[2,0],"g30":[0,1],"g31":[3,0],"g32":[0,1],"g33":[5,1],"g34":[2,1],"g35":[0,0],"g36":[0,4],"g37":[4,0],"g38":[0,0],"g39":[2,2],"g40":[1,3],"g41":[2,0],"g42":[3,0],"g43":[3,2],"g44":[1,2],"g45":[5,0],"g46":[0,0],"g47":[0,1],"g48":[1,0],"g49":[2,1],"g50":[3,1],"g51":[4,2],"g52":[0,3],"g53":[1,0],"g54":[0,3],"g55":[0,2],"g56":[2,1],"g57":[1,3],"g58":[1,1],"g59":[3,2],"g60":[0,0],"g61":[1,4],"g62":[5,0],"g63":[0,0],"g64":[0,1],"g65":[1,5],"g66":[1,1],"g67":[0,2],"g68":[2,1],"g69":[0,0],"g70":[3,1],"g71":[3,3],"g72":[1,3]};
+const SEED_RESULTS={"g1":[2,0],"g2":[2,1],"g3":[1,1],"g4":[4,1],"g5":[1,1],"g6":[1,1],"g7":[0,1],"g8":[2,0],"g9":[7,1],"g10":[2,2],"g11":[1,0],"g12":[5,1],"g13":[0,0],"g14":[1,1],"g15":[1,1],"g16":[2,2],"g17":[3,1],"g18":[1,4],"g19":[3,0],"g20":[3,1],"g21":[1,1],"g22":[4,2],"g23":[1,0],"g24":[1,3],"g25":[1,1],"g26":[4,1],"g27":[6,0],"g28":[1,0],"g29":[2,0],"g30":[0,1],"g31":[3,0],"g32":[0,1],"g33":[5,1],"g34":[2,1],"g35":[0,0],"g36":[0,4],"g37":[4,0],"g38":[0,0],"g39":[2,2],"g40":[1,3],"g41":[2,0],"g42":[3,0],"g43":[3,2],"g44":[1,2],"g45":[5,0],"g46":[0,0],"g47":[0,1],"g48":[1,0],"g49":[2,1],"g50":[3,1],"g51":[4,2],"g52":[0,3],"g53":[1,0],"g54":[0,3],"g55":[0,2],"g56":[2,1],"g57":[1,3],"g58":[1,1],"g59":[3,2],"g60":[0,0],"g61":[1,4],"g62":[5,0],"g63":[0,0],"g64":[0,1],"g65":[1,5],"g66":[1,1],"g67":[0,2],"g68":[2,1],"g69":[0,0],"g70":[3,1],"g71":[3,3],"g72":[1,3],"k73":[0,1],"k74":[1,1],"k75":[1,1],"k76":[2,1],"k78":[1,2]};
+const SEED_PENS={"k74":"A","k75":"A"};
+const SEED_KOMETA={"k74":{aet:true,pen:[3,4]},"k75":{aet:true,pen:[2,3]}};
 async function loadState(){
   let loaded=null;
   try{
@@ -722,6 +729,8 @@ async function loadState(){
   }
   if(loaded)state={...state,...loaded};
   state.results=Object.assign({},SEED_RESULTS,state.results||{});
+  state.pens=Object.assign({},SEED_PENS,state.pens||{});
+  state.koMeta=Object.assign({},SEED_KOMETA,state.koMeta||{});
 }
 let saveTimer=null;
 function saveState(){
@@ -1006,9 +1015,18 @@ function mergeOpenFootball(ms,acc){
       if(ft){const sh=flip?ft[1]:ft[0],sa=flip?ft[0]:ft[1];const c=applyResult(id,false,sh,sa);if(c===1)acc.added++;else if(c===2)acc.fixed++;}
       else if(ht&&utc&&new Date(utc).getTime()<Date.now())acc.live[id]={sc:[flip?ht[1]:ht[0],flip?ht[0]:ht[1]],min:"HT"};
     }else if(m.num&&koByNum[m.num]&&ft){
-      const km=koByNum[m.num],id="k"+m.num;let sh=ft[0],sa=ft[1];
-      if(km.home&&!ofPlaceholder(m.team1)&&km.home!==ofTeam(m.team1)){sh=ft[1];sa=ft[0];}
+      const km=koByNum[m.num],id="k"+m.num;
+      const flip=km.home&&!ofPlaceholder(m.team1)&&km.home!==ofTeam(m.team1);
+      const et=m.score&&m.score.et,p=m.score&&m.score.p;
+      const stand=et||ft;                       // score that stands (after extra time if it was played)
+      let sh=stand[0],sa=stand[1];if(flip){sh=stand[1];sa=stand[0];}
       const c=applyResult(id,true,sh,sa);if(c===1)acc.added++;else if(c===2)acc.fixed++;
+      const meta={};
+      if(et||p)meta.aet=true;
+      if(p){let ph=p[0],pa=p[1];if(flip){ph=p[1];pa=p[0];}meta.pen=[ph,pa];
+        state.pens[id]=ph>pa?"H":pa>ph?"A":(state.pens[id]||null);}
+      state.koMeta=state.koMeta||{};
+      if(meta.aet||meta.pen)state.koMeta[id]=meta;
     }
   });
 }
@@ -1420,14 +1438,21 @@ function koCard(m,showRound){
   const done=ready&&!!r&&!editing.has(id)&&(r[0]!==r[1]||state.pens[id]);
   const drawNeedsPens=ready&&!!r&&r[0]===r[1];
   const w=koWinner(m.no);
+  const meta=(state.koMeta&&state.koMeta[id])||{};
+  const isPens=done&&!!state.pens[id];
+  const aet=!!meta.aet;
+  const penStr=meta.pen?meta.pen[0]+"–"+meta.pen[1]:"";
   const grpLbl=showRound?(ROUND_SHORT[m.round]||m.round):("M"+m.no);
   let mid;
   if(!ready) mid=`<div class="score-mid"><span class="ko-time">${timeLabel(m.utc)}</span></div>`;
-  else if(done) mid=`<div class="score-mid"><span class="fin">${r[0]} – ${r[1]}</span></div>`;
+  else if(done){
+    const extra=isPens?`<span class="ko-extra">AET${penStr?" · pens "+penStr:""}</span>`:(aet?`<span class="ko-extra">after extra time</span>`:"");
+    mid=`<div class="score-mid"><span class="fin">${r[0]} – ${r[1]}</span>${extra}</div>`;
+  }
   else mid=scoreCell(id,m.home||"home",m.away||"away",m.utc);
   const status=anyProj?'<span class="proj-tag">~ projected</span>':(ready&&!r?'<span class="lock-tag">🔒 locked in</span>':"");
   return `<div class="match ${done?"done":""}">
-    ${done?'<span class="ft-tag">'+(state.pens[id]?"AFTER PENS":"FULL TIME")+'</span>':""}
+    ${done?'<span class="ft-tag">'+(isPens?"AFTER PENS":(aet?"AFTER EXTRA TIME":"FULL TIME"))+'</span>':""}
     <div class="mtop"><span><span class="grp">${grpLbl}</span> &middot; ${m.venue} ${status}</span><span>⏰ ${shortDay(m.utc)} &middot; ${timeLabel(m.utc)} ${state.tz==="UK"?"BST":"AEST"}</span></div>
     <div class="teams">
       <div class="team"><span class="fl">${m.home?fl(m.home):"❔"}</span><span class="nm ${m.home&&!m.hConf?"proj":""}" style="${!m.home?'color:var(--muted);font-weight:400;font-size:13px':''}">${esc(m.home||m.homeLbl)}${w==="H"&&done?" ✅":""}</span></div>
@@ -1436,8 +1461,9 @@ function koCard(m,showRound){
     </div>
     ${anyProj?`<div style="font-size:11px;color:var(--muted);margin-top:7px;font-style:italic">${!m.hConf&&m.home?esc(m.homeLbl):""}${(!m.hConf&&m.home)&&(!m.aConf&&m.away)?" &middot; ":""}${!m.aConf&&m.away?esc(m.awayLbl):""} — as the tables stand</div>`:""}
     ${drawNeedsPens&&!done?`<div class="pens">Level after extra time — who won the shootout?
-      <button class="btn ${state.pens[id]==="H"?"sel":""}" data-pen="${id}|H">${esc(m.home)}</button>
-      <button class="btn ${state.pens[id]==="A"?"sel":""}" data-pen="${id}|A">${esc(m.away)}</button></div>`:""}
+      <div class="pen-row"><button class="btn ${state.pens[id]==="H"?"sel":""}" data-pen="${id}|H">${esc(m.home)}</button>
+      <button class="btn ${state.pens[id]==="A"?"sel":""}" data-pen="${id}|A">${esc(m.away)}</button></div>
+      <div class="pen-score"><span>Shootout score (optional):</span> <input type="number" min="0" inputmode="numeric" id="${id}-ph" value="${meta.pen?meta.pen[0]:""}"> – <input type="number" min="0" inputmode="numeric" id="${id}-pa" value="${meta.pen?meta.pen[1]:""}"> <button class="btn ghost" data-penscore="${id}">Save</button></div></div>`:""}
     <div class="mbot">
       <div class="tv">${chanHTML(null,m.no)}</div>
       ${ready?(done?`<div class="actions">${highlightsLink(m.home,m.away,id)}<button class="btn ghost" data-edit="${id}">Edit</button></div>`:`<button class="btn" data-save="${id}" data-ko="1">Save result</button>`):""}
@@ -1750,8 +1776,17 @@ view.addEventListener("click",e=>{
   if(trav){openTravelModal();return;}
   if(pen){
     const[id,side]=pen.dataset.pen.split("|");
-    state.pens[id]=side;saveState();render();
+    state.pens[id]=side;state.koMeta=state.koMeta||{};state.koMeta[id]={...(state.koMeta[id]||{}),aet:true};
+    saveState();render();
     toast("Shootout winner saved — drama! 🥅");return;
+  }
+  const ps=e.target.closest("[data-penscore]");
+  if(ps){
+    const id=ps.dataset.penscore;
+    const ph=parseInt(document.getElementById(id+"-ph").value,10),pa=parseInt(document.getElementById(id+"-pa").value,10);
+    if(isNaN(ph)||isNaN(pa)||ph<0||pa<0||ph===pa){toast("Enter both shootout scores — no ties 🥅");return;}
+    state.pens[id]=ph>pa?"H":"A";state.koMeta=state.koMeta||{};state.koMeta[id]={aet:true,pen:[ph,pa]};
+    saveState();render();toast("Shootout saved — drama! 🥅");return;
   }
   if(edit){editing.add(edit.dataset.edit);render();return;}
   if(save){
@@ -1763,7 +1798,7 @@ view.addEventListener("click",e=>{
     const prev=state.results[id];
     const prevWinner=isKO&&prev?koWinner(parseInt(id.slice(1),10)):null;
     state.results[id]=[h,a];
-    if(isKO&&h!==a)delete state.pens[id];
+    if(isKO&&h!==a){delete state.pens[id];if(state.koMeta)delete state.koMeta[id];}
     if(isKO&&prev){
       const no=parseInt(id.slice(1),10);
       const newWinner=h>a?"H":h<a?"A":state.pens[id]||null;
@@ -1782,7 +1817,7 @@ view.addEventListener("click",e=>{
 function clearDownstream(no){
   (KO_DEPS[no]||[]).forEach(next=>{
     if(state.results["k"+next]||state.pens["k"+next]){
-      delete state.results["k"+next];delete state.pens["k"+next];
+      delete state.results["k"+next];delete state.pens["k"+next];if(state.koMeta)delete state.koMeta["k"+next];
       clearDownstream(next);
     }else{clearDownstream(next);}
   });

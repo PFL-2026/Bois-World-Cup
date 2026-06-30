@@ -1,5 +1,5 @@
 /* World Cup 2026 — service worker: offline app shell + notification display */
-const CACHE="wc2026-v8";
+const CACHE="wc2026-v10";
 const SHELL=["./","index.html","manifest.json","favicon.ico","icon-192.png","icon-512.png","apple-touch-icon.png"];
 
 self.addEventListener("install",e=>{
